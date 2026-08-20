@@ -1,0 +1,5 @@
+# Created at 2026-08-20T23:48:57.231
+Boot Manifest-JAR contains absolute paths in classpath 'E:\Vighnesh\financial-audit-risk-platform\target\test-classes'
+Hint: <argLine>-Djdk.net.URLClassPath.disableClassPathURLCheck=true</argLine>
+'other' has different root
+

@@ -34,6 +34,7 @@ public class Main {
 
             engine.addRule(new HighAmountRule());
             engine.addRule(new UnusualTimeRule());
+
             engine.addDatasetRule(
                     new DuplicateTransactionRule()
             );
@@ -48,6 +49,7 @@ public class Main {
 
                 System.out.println();
                 System.out.println("-----------------------------------------");
+
                 System.out.println(
                         "Transaction: "
                                 + transaction.getId()

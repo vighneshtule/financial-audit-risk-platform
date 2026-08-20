@@ -1,0 +1,183 @@
+package rule;
+
+import model.Transaction;
+import org.junit.jupiter.api.Test;
+
+import java.time.LocalDateTime;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+class DuplicateTransactionRuleTest {
+
+    @Test
+    void shouldDetectDuplicateTransactionsWithinTenMinutes() {
+
+        LocalDateTime baseTime =
+                LocalDateTime.of(2026, 8, 20, 10, 0);
+
+        Transaction t1 = new Transaction(
+                "TXN001",
+                "ABC Suppliers",
+                "EMP101",
+                50_000,
+                baseTime,
+                "Office Supplies"
+        );
+
+        Transaction t2 = new Transaction(
+                "TXN002",
+                "ABC Suppliers",
+                "EMP101",
+                50_000,
+                baseTime.plusMinutes(5),
+                "Office Supplies"
+        );
+
+        List<Transaction> transactions =
+                List.of(t1, t2);
+
+        DuplicateTransactionRule rule =
+                new DuplicateTransactionRule();
+
+        int score =
+                rule.evaluate(t1, transactions);
+
+        assertEquals(25, score);
+    }
+
+    @Test
+    void shouldNotDetectDuplicateTransactionsOutsideTenMinutes() {
+
+        LocalDateTime baseTime =
+                LocalDateTime.of(2026, 8, 20, 10, 0);
+
+        Transaction t1 = new Transaction(
+                "TXN001",
+                "ABC Suppliers",
+                "EMP101",
+                50_000,
+                baseTime,
+                "Office Supplies"
+        );
+
+        Transaction t2 = new Transaction(
+                "TXN002",
+                "ABC Suppliers",
+                "EMP101",
+                50_000,
+                baseTime.plusMinutes(20),
+                "Office Supplies"
+        );
+
+        List<Transaction> transactions =
+                List.of(t1, t2);
+
+        DuplicateTransactionRule rule =
+                new DuplicateTransactionRule();
+
+        int score =
+                rule.evaluate(t1, transactions);
+
+        assertEquals(0, score);
+    }
+
+    @Test
+    void shouldNotDetectDuplicateWhenVendorIsDifferent() {
+
+        LocalDateTime baseTime =
+                LocalDateTime.of(2026, 8, 20, 10, 0);
+
+        Transaction t1 = new Transaction(
+                "TXN001",
+                "ABC Suppliers",
+                "EMP101",
+                50_000,
+                baseTime,
+                "Office Supplies"
+        );
+
+        Transaction t2 = new Transaction(
+                "TXN002",
+                "XYZ Traders",
+                "EMP101",
+                50_000,
+                baseTime.plusMinutes(5),
+                "Office Supplies"
+        );
+
+        List<Transaction> transactions =
+                List.of(t1, t2);
+
+        DuplicateTransactionRule rule =
+                new DuplicateTransactionRule();
+
+        int score =
+                rule.evaluate(t1, transactions);
+
+        assertEquals(0, score);
+    }
+
+    @Test
+    void shouldNotDetectDuplicateWhenAmountIsDifferent() {
+
+        LocalDateTime baseTime =
+                LocalDateTime.of(2026, 8, 20, 10, 0);
+
+        Transaction t1 = new Transaction(
+                "TXN001",
+                "ABC Suppliers",
+                "EMP101",
+                50_000,
+                baseTime,
+                "Office Supplies"
+        );
+
+        Transaction t2 = new Transaction(
+                "TXN002",
+                "ABC Suppliers",
+                "EMP101",
+                20_000,
+                baseTime.plusMinutes(5),
+                "Office Supplies"
+        );
+
+        List<Transaction> transactions =
+                List.of(t1, t2);
+
+        DuplicateTransactionRule rule =
+                new DuplicateTransactionRule();
+
+        int score =
+                rule.evaluate(t1, transactions);
+
+        assertEquals(0, score);
+    }
+
+    @Test
+    void shouldNotDetectTransactionAsItsOwnDuplicate() {
+
+        LocalDateTime time =
+                LocalDateTime.of(2026, 8, 20, 10, 0);
+
+        Transaction transaction = new Transaction(
+                "TXN001",
+                "ABC Suppliers",
+                "EMP101",
+                50_000,
+                time,
+                "Office Supplies"
+        );
+
+        List<Transaction> transactions =
+                List.of(transaction);
+
+        DuplicateTransactionRule rule =
+                new DuplicateTransactionRule();
+
+        int score =
+                rule.evaluate(transaction, transactions);
+
+        assertEquals(0, score);
+    }
+}
