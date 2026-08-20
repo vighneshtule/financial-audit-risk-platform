@@ -2,7 +2,9 @@ package service;
 
 import model.RiskReport;
 import model.Transaction;
+import rule.DatasetRiskRule;
 import rule.RiskRule;
+
 
 import java.util.ArrayList;
 import java.util.List;
@@ -11,19 +13,41 @@ public class RiskEngine {
 
     private final List<RiskRule> rules = new ArrayList<>();
 
+    private final List<DatasetRiskRule> datasetRules =
+            new ArrayList<>();
+
     public void addRule(RiskRule rule) {
         rules.add(rule);
     }
 
-    public RiskReport analyze(Transaction transaction) {
+    public void addDatasetRule(DatasetRiskRule rule) {
+        datasetRules.add(rule);
+    }
+
+    public RiskReport analyze(
+            Transaction transaction,
+            List<Transaction> transactions) {
 
         int totalRisk = 0;
 
         List<String> reasons = new ArrayList<>();
 
+        // Individual transaction rules
         for (RiskRule rule : rules) {
 
             int score = rule.evaluate(transaction);
+
+            if (score > 0) {
+                totalRisk += score;
+                reasons.add(rule.getReason());
+            }
+        }
+
+        // Dataset-level rules
+        for (DatasetRiskRule rule : datasetRules) {
+
+            int score =
+                    rule.evaluate(transaction, transactions);
 
             if (score > 0) {
                 totalRisk += score;
