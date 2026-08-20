@@ -1,3 +1,4 @@
+import model.RiskFinding;
 import model.RiskReport;
 import model.Transaction;
 import rule.DuplicateTransactionRule;
@@ -71,7 +72,7 @@ public class Main {
                                 + "/100"
                 );
 
-                if (report.getReasons().isEmpty()) {
+                if (report.getFindings().isEmpty()) {
 
                     System.out.println(
                             "Status: LOW RISK"
@@ -81,11 +82,11 @@ public class Main {
 
                     System.out.println("Risk Reasons:");
 
-                    for (String reason :
-                            report.getReasons()) {
+                    for (RiskFinding finding :
+                            report.getFindings()) {
 
                         System.out.println(
-                                "  - " + reason
+                                "  - " + finding.getExplanation()
                         );
                     }
                 }

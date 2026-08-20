@@ -1,6 +1,8 @@
 package service;
 
+import model.RiskFinding;
 import model.RiskReport;
+import model.RiskSeverity;
 import model.Transaction;
 import rule.DatasetRiskRule;
 import rule.RiskRule;
@@ -30,33 +32,55 @@ public class RiskEngine {
 
         int totalRisk = 0;
 
-        List<String> reasons = new ArrayList<>();
+        List<RiskFinding> findings = new ArrayList<>();
 
-        // Individual transaction rules
         for (RiskRule rule : rules) {
 
-            int score = rule.evaluate(transaction);
+            RiskFinding finding =
+                    rule.evaluate(transaction);
 
-            if (score > 0) {
-                totalRisk += score;
-                reasons.add(rule.getReason());
+            if (finding != null) {
+
+                totalRisk += finding.getScore();
+
+                findings.add(finding);
             }
         }
 
-        // Dataset-level rules
         for (DatasetRiskRule rule : datasetRules) {
 
-            int score =
-                    rule.evaluate(transaction, transactions);
+            RiskFinding finding =
+                    rule.evaluate(
+                            transaction,
+                            transactions
+                    );
 
-            if (score > 0) {
-                totalRisk += score;
-                reasons.add(rule.getReason());
+            if (finding != null) {
+
+                totalRisk += finding.getScore();
+
+                findings.add(finding);
             }
         }
 
         totalRisk = Math.min(totalRisk, 100);
 
-        return new RiskReport(totalRisk, reasons);
+        RiskSeverity severity;
+
+        if (totalRisk >= 80) {
+            severity = RiskSeverity.CRITICAL;
+        } else if (totalRisk >= 60) {
+            severity = RiskSeverity.HIGH;
+        } else if (totalRisk >= 30) {
+            severity = RiskSeverity.MEDIUM;
+        } else {
+            severity = RiskSeverity.LOW;
+        }
+
+        return new RiskReport(
+                totalRisk,
+                severity,
+                findings
+        );
     }
 }

@@ -1,5 +1,8 @@
 E:\Vighnesh\financial-audit-risk-platform\src\main\java\Main.java
+E:\Vighnesh\financial-audit-risk-platform\src\main\java\model\RiskFinding.java
 E:\Vighnesh\financial-audit-risk-platform\src\main\java\model\RiskReport.java
+E:\Vighnesh\financial-audit-risk-platform\src\main\java\model\RiskSeverity.java
+E:\Vighnesh\financial-audit-risk-platform\src\main\java\model\RiskType.java
 E:\Vighnesh\financial-audit-risk-platform\src\main\java\model\Transaction.java
 E:\Vighnesh\financial-audit-risk-platform\src\main\java\model\TransactionKey.java
 E:\Vighnesh\financial-audit-risk-platform\src\main\java\rule\DatasetRiskRule.java

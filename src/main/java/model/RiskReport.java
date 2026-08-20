@@ -5,18 +5,28 @@ import java.util.List;
 public class RiskReport {
 
     private final int riskScore;
-    private final List<String> reasons;
+    private final RiskSeverity riskLevel;
+    private final List<RiskFinding> findings;
 
-    public RiskReport(int riskScore, List<String> reasons) {
+    public RiskReport(
+            int riskScore,
+            RiskSeverity riskLevel,
+            List<RiskFinding> findings) {
+
         this.riskScore = riskScore;
-        this.reasons = reasons;
+        this.riskLevel = riskLevel;
+        this.findings = findings;
     }
 
     public int getRiskScore() {
         return riskScore;
     }
 
-    public List<String> getReasons() {
-        return reasons;
+    public RiskSeverity getRiskLevel() {
+        return riskLevel;
+    }
+
+    public List<RiskFinding> getFindings() {
+        return findings;
     }
 }

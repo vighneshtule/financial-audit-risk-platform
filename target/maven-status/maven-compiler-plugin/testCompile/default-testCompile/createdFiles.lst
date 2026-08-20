@@ -1,1 +1,4 @@
+rule\HighAmountRuleTest.class
 rule\DuplicateTransactionRuleTest.class
+rule\UnusualTimeRuleTest.class
+service\RiskEngineTest.class

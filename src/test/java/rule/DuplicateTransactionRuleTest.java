@@ -1,5 +1,6 @@
 package rule;
 
+import model.RiskFinding;
 import model.Transaction;
 import org.junit.jupiter.api.Test;
 
@@ -7,6 +8,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 class DuplicateTransactionRuleTest {
 
@@ -40,10 +42,10 @@ class DuplicateTransactionRuleTest {
         DuplicateTransactionRule rule =
                 new DuplicateTransactionRule();
 
-        int score =
+        RiskFinding finding =
                 rule.evaluate(t1, transactions);
 
-        assertEquals(25, score);
+        assertEquals(25, finding.getScore());
     }
 
     @Test
@@ -76,10 +78,10 @@ class DuplicateTransactionRuleTest {
         DuplicateTransactionRule rule =
                 new DuplicateTransactionRule();
 
-        int score =
+        RiskFinding finding =
                 rule.evaluate(t1, transactions);
 
-        assertEquals(0, score);
+        assertNull(finding);
     }
 
     @Test
@@ -112,10 +114,10 @@ class DuplicateTransactionRuleTest {
         DuplicateTransactionRule rule =
                 new DuplicateTransactionRule();
 
-        int score =
+        RiskFinding finding =
                 rule.evaluate(t1, transactions);
 
-        assertEquals(0, score);
+        assertNull(finding);
     }
 
     @Test
@@ -148,10 +150,10 @@ class DuplicateTransactionRuleTest {
         DuplicateTransactionRule rule =
                 new DuplicateTransactionRule();
 
-        int score =
+        RiskFinding finding =
                 rule.evaluate(t1, transactions);
 
-        assertEquals(0, score);
+        assertNull(finding);
     }
 
     @Test
@@ -175,9 +177,9 @@ class DuplicateTransactionRuleTest {
         DuplicateTransactionRule rule =
                 new DuplicateTransactionRule();
 
-        int score =
+        RiskFinding finding =
                 rule.evaluate(transaction, transactions);
 
-        assertEquals(0, score);
+        assertNull(finding);
     }
 }

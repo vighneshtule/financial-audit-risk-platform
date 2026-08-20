@@ -1,10 +1,9 @@
 package rule;
 
+import model.RiskFinding;
 import model.Transaction;
 
 public interface RiskRule {
 
-    int evaluate(Transaction transaction);
-
-    String getReason();
+    RiskFinding evaluate(Transaction transaction);
 }
