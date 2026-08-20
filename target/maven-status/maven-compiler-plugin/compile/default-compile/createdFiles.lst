@@ -1,7 +1,10 @@
+config\DatabaseConfig.class
 rule\UnusualTimeRule.class
+config\DatabaseConnection.class
 rule\DatasetRiskRule.class
 model\RiskSeverity.class
 service\TransactionCsvReader.class
+repository\TransactionRepository.class
 service\RiskEngine.class
 model\RiskType.class
 Main.class

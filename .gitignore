@@ -1,0 +1,13 @@
+# Maven
+target/
+
+# Manual Java compilation
+out/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Environment variables
+.env
