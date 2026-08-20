@@ -1,5 +1,6 @@
 package service;
 
+import model.RiskReport;
 import model.Transaction;
 import rule.RiskRule;
 
@@ -14,14 +15,24 @@ public class RiskEngine {
         rules.add(rule);
     }
 
-    public int calculateRisk(Transaction transaction) {
+    public RiskReport analyze(Transaction transaction) {
 
         int totalRisk = 0;
 
+        List<String> reasons = new ArrayList<>();
+
         for (RiskRule rule : rules) {
-            totalRisk += rule.evaluate(transaction);
+
+            int score = rule.evaluate(transaction);
+
+            if (score > 0) {
+                totalRisk += score;
+                reasons.add(rule.getReason());
+            }
         }
 
-        return Math.min(totalRisk, 100);
+        totalRisk = Math.min(totalRisk, 100);
+
+        return new RiskReport(totalRisk, reasons);
     }
 }
