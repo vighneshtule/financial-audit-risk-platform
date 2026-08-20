@@ -1,0 +1,11 @@
+transaction_id,vendor,employee,amount,transaction_time,category
+TXN001,ABC Suppliers,EMP101,50000,2026-08-20T10:00,Office Supplies
+TXN002,ABC Suppliers,EMP101,50000,2026-08-20T10:05,Office Supplies
+TXN003,XYZ Traders,EMP102,20000,2026-08-20T11:00,Equipment
+TXN004,Global Tech,EMP103,150000,2026-08-20T14:30,Technology
+TXN005,Global Tech,EMP103,150000,2026-08-20T14:35,Technology
+TXN006,Office World,EMP104,25000,2026-08-20T16:00,Office Supplies
+TXN007,ABC Suppliers,EMP101,50000,2026-08-20T15:00,Office Supplies
+TXN008,Security Corp,EMP105,200000,2026-08-20T02:30,Security
+TXN009,XYZ Traders,EMP102,20000,2026-08-20T11:05,Equipment
+TXN010,Finance Ltd,EMP106,75000,2026-08-20T17:30,Finance
