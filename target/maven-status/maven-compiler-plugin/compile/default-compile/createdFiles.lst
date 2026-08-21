@@ -1,6 +1,8 @@
 config\DatabaseConfig.class
 rule\UnusualTimeRule.class
 config\DatabaseConnection.class
+service\TransactionImportService.class
+service\AuditApplication.class
 rule\DatasetRiskRule.class
 model\RiskSeverity.class
 service\TransactionCsvReader.class
