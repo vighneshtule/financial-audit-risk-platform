@@ -1,5 +1,6 @@
 package model;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 public class Transaction {
@@ -7,7 +8,7 @@ public class Transaction {
     private final String id;
     private final String vendor;
     private final String employee;
-    private final double amount;
+    private final BigDecimal amount;
     private final LocalDateTime transactionTime;
     private final String category;
 
@@ -15,7 +16,7 @@ public class Transaction {
             String id,
             String vendor,
             String employee,
-            double amount,
+            BigDecimal amount,
             LocalDateTime transactionTime,
             String category) {
 
@@ -39,7 +40,7 @@ public class Transaction {
         return employee;
     }
 
-    public double getAmount() {
+    public BigDecimal getAmount() {
         return amount;
     }
 

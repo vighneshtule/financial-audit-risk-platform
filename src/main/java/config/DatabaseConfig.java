@@ -3,11 +3,11 @@ package config;
 public class DatabaseConfig {
 
     public static final String URL =
-            "jdbc:postgresql://localhost:5432/financial_audit";
+            System.getenv("DB_URL");
 
     public static final String USER =
-            "postgres";
+            System.getenv("DB_USERNAME");
 
     public static final String PASSWORD =
-            "postgres";
+            System.getenv("DB_PASSWORD");
 }

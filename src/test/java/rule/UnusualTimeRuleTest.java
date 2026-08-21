@@ -7,6 +7,7 @@ import model.Transaction;
 
 import org.junit.jupiter.api.Test;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -20,7 +21,7 @@ class UnusualTimeRuleTest {
                 "TXN001",
                 "ABC Suppliers",
                 "EMP101",
-                50_000,
+                new BigDecimal("50000.00"),
                 LocalDateTime.of(2026, 8, 20, 2, 30),
                 "Office Supplies"
         );
@@ -54,7 +55,7 @@ class UnusualTimeRuleTest {
                 "TXN002",
                 "ABC Suppliers",
                 "EMP101",
-                50_000,
+                new BigDecimal("50000.00"),
                 LocalDateTime.of(2026, 8, 20, 14, 30),
                 "Office Supplies"
         );
@@ -73,7 +74,7 @@ class UnusualTimeRuleTest {
                 "TXN003",
                 "ABC Suppliers",
                 "EMP101",
-                50_000,
+                new BigDecimal("50000.00"),
                 LocalDateTime.of(2026, 8, 20, 19, 30),
                 "Office Supplies"
         );

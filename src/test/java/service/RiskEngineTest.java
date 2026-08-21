@@ -9,6 +9,7 @@ import rule.DuplicateTransactionRule;
 import rule.HighAmountRule;
 import rule.UnusualTimeRule;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -26,7 +27,7 @@ class RiskEngineTest {
                 "TXN100",
                 "Normal Vendor",
                 "EMP200",
-                50_000,
+                new BigDecimal("50000.00"),
                 time,
                 "Office Supplies"
         );
@@ -68,7 +69,7 @@ class RiskEngineTest {
                 "TXN001",
                 "ABC Suppliers",
                 "EMP101",
-                150_000,
+                new BigDecimal("150000.00"),
                 baseTime,
                 "Office Supplies"
         );
@@ -77,7 +78,7 @@ class RiskEngineTest {
                 "TXN002",
                 "ABC Suppliers",
                 "EMP101",
-                150_000,
+                new BigDecimal("150000.00"),
                 baseTime.plusMinutes(5),
                 "Office Supplies"
         );

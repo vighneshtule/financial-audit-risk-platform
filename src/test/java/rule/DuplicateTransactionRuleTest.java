@@ -4,6 +4,7 @@ import model.RiskFinding;
 import model.Transaction;
 import org.junit.jupiter.api.Test;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -22,7 +23,7 @@ class DuplicateTransactionRuleTest {
                 "TXN001",
                 "ABC Suppliers",
                 "EMP101",
-                50_000,
+                new BigDecimal("50000.00"),
                 baseTime,
                 "Office Supplies"
         );
@@ -31,7 +32,7 @@ class DuplicateTransactionRuleTest {
                 "TXN002",
                 "ABC Suppliers",
                 "EMP101",
-                50_000,
+                new BigDecimal("50000.00"),
                 baseTime.plusMinutes(5),
                 "Office Supplies"
         );
@@ -58,7 +59,7 @@ class DuplicateTransactionRuleTest {
                 "TXN001",
                 "ABC Suppliers",
                 "EMP101",
-                50_000,
+                new BigDecimal("50000.00"),
                 baseTime,
                 "Office Supplies"
         );
@@ -67,7 +68,7 @@ class DuplicateTransactionRuleTest {
                 "TXN002",
                 "ABC Suppliers",
                 "EMP101",
-                50_000,
+                new BigDecimal("50000.00"),
                 baseTime.plusMinutes(20),
                 "Office Supplies"
         );
@@ -94,7 +95,7 @@ class DuplicateTransactionRuleTest {
                 "TXN001",
                 "ABC Suppliers",
                 "EMP101",
-                50_000,
+                new BigDecimal("50000.00"),
                 baseTime,
                 "Office Supplies"
         );
@@ -103,7 +104,7 @@ class DuplicateTransactionRuleTest {
                 "TXN002",
                 "XYZ Traders",
                 "EMP101",
-                50_000,
+                new BigDecimal("50000.00"),
                 baseTime.plusMinutes(5),
                 "Office Supplies"
         );
@@ -130,7 +131,7 @@ class DuplicateTransactionRuleTest {
                 "TXN001",
                 "ABC Suppliers",
                 "EMP101",
-                50_000,
+                new BigDecimal("50000.00"),
                 baseTime,
                 "Office Supplies"
         );
@@ -139,7 +140,7 @@ class DuplicateTransactionRuleTest {
                 "TXN002",
                 "ABC Suppliers",
                 "EMP101",
-                20_000,
+                new BigDecimal("20000.00"),
                 baseTime.plusMinutes(5),
                 "Office Supplies"
         );
@@ -166,7 +167,7 @@ class DuplicateTransactionRuleTest {
                 "TXN001",
                 "ABC Suppliers",
                 "EMP101",
-                50_000,
+                new BigDecimal("50000.00"),
                 time,
                 "Office Supplies"
         );

@@ -3,6 +3,7 @@ package service;
 import model.Transaction;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
@@ -27,7 +28,7 @@ public class TransactionCsvReader {
             String id = fields[0];
             String vendor = fields[1];
             String employee = fields[2];
-            double amount = Double.parseDouble(fields[3]);
+            BigDecimal amount = new BigDecimal(fields[3].trim());
             LocalDateTime transactionTime =
                     LocalDateTime.parse(fields[4]);
             String category = fields[5];

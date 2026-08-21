@@ -5,14 +5,17 @@ import model.RiskSeverity;
 import model.RiskType;
 import model.Transaction;
 
+import java.math.BigDecimal;
+
 public class HighAmountRule implements RiskRule {
 
-    private static final double THRESHOLD = 100_000;
+    private static final BigDecimal THRESHOLD =
+            new BigDecimal("100000");
 
     @Override
     public RiskFinding evaluate(Transaction transaction) {
 
-        if (transaction.getAmount() > THRESHOLD) {
+        if (transaction.getAmount().compareTo(THRESHOLD) > 0) {
 
             return new RiskFinding(
                     RiskType.HIGH_AMOUNT,

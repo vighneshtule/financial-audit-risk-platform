@@ -7,6 +7,7 @@ import model.Transaction;
 
 import org.junit.jupiter.api.Test;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -20,7 +21,7 @@ class HighAmountRuleTest {
                 "TXN001",
                 "ABC Suppliers",
                 "EMP101",
-                150_000,
+                new BigDecimal("150000.00"),
                 LocalDateTime.of(2026, 8, 20, 10, 0),
                 "Office Supplies"
         );
@@ -54,7 +55,7 @@ class HighAmountRuleTest {
                 "TXN002",
                 "ABC Suppliers",
                 "EMP101",
-                50_000,
+                new BigDecimal("50000.00"),
                 LocalDateTime.of(2026, 8, 20, 10, 0),
                 "Office Supplies"
         );
