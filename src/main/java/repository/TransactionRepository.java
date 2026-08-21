@@ -13,60 +13,59 @@ public class TransactionRepository {
 
         //save()
 
-    public void save(Transaction transaction)
-            throws SQLException {
+    public void save(
+                Connection connection,
+                Transaction transaction)
+                throws SQLException {
 
         String sql = """
                 INSERT INTO transactions (
-                    transaction_id,
-                    vendor,
-                    employee,
-                    amount,
-                    transaction_time,
-                    category
+                        transaction_id,
+                        vendor,
+                        employee,
+                        amount,
+                        transaction_time,
+                        category
                 )
                 VALUES (?, ?, ?, ?, ?, ?)
                 """;
 
-        try (Connection connection =
-                     DatabaseConnection.getConnection();
+        try (PreparedStatement statement =
+                        connection.prepareStatement(sql)) {
 
-             PreparedStatement statement =
-                     connection.prepareStatement(sql)) {
+                statement.setString(
+                        1,
+                        transaction.getId()
+                );
 
-            statement.setString(
-                    1,
-                    transaction.getId()
-            );
+                statement.setString(
+                        2,
+                        transaction.getVendor()
+                );
 
-            statement.setString(
-                    2,
-                    transaction.getVendor()
-            );
+                statement.setString(
+                        3,
+                        transaction.getEmployee()
+                );
 
-            statement.setString(
-                    3,
-                    transaction.getEmployee()
-            );
+                statement.setBigDecimal(
+                        4,
+                        transaction.getAmount()
+                );
 
-            statement.setBigDecimal(
-                    4,
-                    transaction.getAmount()
-            );
+                statement.setObject(
+                        5,
+                        transaction.getTransactionTime()
+                );
 
-            statement.setObject(
-                    5,
-                    transaction.getTransactionTime()
-            );
+                statement.setString(
+                        6,
+                        transaction.getCategory()
+                );
 
-            statement.setString(
-                    6,
-                    transaction.getCategory()
-            );
-
-            statement.executeUpdate();
+                statement.executeUpdate();
         }
-    }
+        }
 
     //findById()
     public Transaction findById(String transactionId)
@@ -176,5 +175,5 @@ public class TransactionRepository {
 
         //delete()
 
-        
+
 }

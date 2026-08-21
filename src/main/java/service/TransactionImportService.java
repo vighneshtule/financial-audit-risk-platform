@@ -3,8 +3,12 @@ package service;
 import model.Transaction;
 import repository.TransactionRepository;
 
-import java.sql.SQLException;
+import java.sql.Connection;
+
 import java.util.List;
+
+
+import config.DatabaseConnection;
 
 public class TransactionImportService {
 
@@ -27,25 +31,34 @@ public class TransactionImportService {
 
         int imported = 0;
 
-        for (Transaction transaction : transactions) {
+        try (Connection connection =
+                    DatabaseConnection.getConnection()) {
+
+            connection.setAutoCommit(false);
 
             try {
 
-                transactionRepository.save(transaction);
+                for (Transaction transaction :
+                        transactions) {
 
-                imported++;
+                    transactionRepository.save(
+                            connection,
+                            transaction
+                    );
 
-            } catch (SQLException e) {
+                    imported++;
+                }
 
-                System.out.println(
-                        "Could not import transaction "
-                                + transaction.getId()
-                                + ": "
-                                + e.getMessage()
-                );
+                connection.commit();
+
+                return imported;
+
+            } catch (Exception e) {
+
+                connection.rollback();
+
+                throw e;
             }
         }
-
-        return imported;
     }
 }
