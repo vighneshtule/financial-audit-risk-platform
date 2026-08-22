@@ -1,5 +1,6 @@
 package repository;
 
+import org.springframework.stereotype.Repository;
 import config.DatabaseConnection;
 import model.Transaction;
 
@@ -9,6 +10,7 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
+@Repository
 public class TransactionRepository {
 
         //save()
