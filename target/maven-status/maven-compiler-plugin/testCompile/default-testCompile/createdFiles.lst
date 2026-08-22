@@ -1,5 +1,0 @@
-rule\HighAmountRuleTest.class
-rule\DuplicateTransactionRuleTest.class
-service\TransactionImportServiceTest.class
-rule\UnusualTimeRuleTest.class
-service\RiskEngineTest.class
