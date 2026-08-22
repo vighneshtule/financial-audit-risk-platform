@@ -79,8 +79,8 @@ class RiskControllerIntegrationTest {
     }
 
     @Test
-        void getExistingTransactionShouldReturnRiskReport()
-                throws Exception {
+    void getExistingTransactionShouldReturnRiskReport()
+            throws Exception {
 
         mockMvc.perform(
                 get("/api/risk/transactions/TXN008")
@@ -90,5 +90,24 @@ class RiskControllerIntegrationTest {
         .andExpect(jsonPath("$.riskLevel").value("MEDIUM"))
         .andExpect(jsonPath("$.findings").isArray())
         .andExpect(jsonPath("$.findings.length()").value(2));
-     }
+    }
+
+    @Test
+    void getRiskSummaryShouldReturnCorrectSummary()
+            throws Exception {
+
+        mockMvc.perform(
+                get("/api/risk/summary")
+        )
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalTransactions").value(10))
+        .andExpect(jsonPath("$.totalAmount").value(790000.00))
+        .andExpect(jsonPath("$.lowRiskTransactions").value(7))
+        .andExpect(jsonPath("$.mediumRiskTransactions").value(3))
+        .andExpect(jsonPath("$.highRiskTransactions").value(0))
+        .andExpect(jsonPath("$.criticalRiskTransactions").value(0))
+        .andExpect(jsonPath("$.totalFindings").value(10))
+        .andExpect(jsonPath("$.highestRiskScore").value(55));
+    }
 }
+
