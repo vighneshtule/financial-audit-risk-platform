@@ -21,7 +21,7 @@ public class HighAmountRule implements RiskRule {
                     RiskType.HIGH_AMOUNT,
                     30,
                     RiskSeverity.MEDIUM,
-                    "Transaction amount exceeds ₹1,00,000"
+                    "Transaction amount exceeds INR 1,00,000"
             );
         }
 
