@@ -12,6 +12,7 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -109,5 +110,164 @@ class RiskControllerIntegrationTest {
         .andExpect(jsonPath("$.totalFindings").value(10))
         .andExpect(jsonPath("$.highestRiskScore").value(55));
     }
+
+    @Test
+    void getAllRiskTransactionsShouldReturnRiskAnalysis()
+            throws Exception {
+
+        mockMvc.perform(
+                get("/api/risk/transactions")
+        )
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content.length()").value(10))
+        .andExpect(jsonPath("$.content[0].transactionId").exists())
+        .andExpect(jsonPath("$.content[0].riskScore").exists())
+        .andExpect(jsonPath("$.content[0].riskLevel").exists())
+        .andExpect(jsonPath("$.content[0].findings").exists())
+        .andExpect(jsonPath("$.page").value(0))
+        .andExpect(jsonPath("$.size").value(10))
+        .andExpect(jsonPath("$.totalElements").value(10))
+        .andExpect(jsonPath("$.totalPages").value(1));
+    }
+
+    @Test
+    void getRiskTransactionsShouldIncludeTxn008()
+            throws Exception {
+
+        String response =
+                mockMvc.perform(
+                        get("/api/risk/transactions")
+                )
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        assertTrue(response.contains("\"transactionId\":\"TXN008\""));
+        assertTrue(response.contains("\"riskScore\":50"));
+    }
+
+    @Test
+    void filterTransactionsByMediumRisk()
+            throws Exception {
+
+        mockMvc.perform(
+                get("/api/risk/transactions")
+                        .param("riskLevel", "MEDIUM")
+        )
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content.length()").value(3))
+        .andExpect(jsonPath("$.totalElements").value(3))
+        .andExpect(jsonPath("$.totalPages").value(1));
+    }
+
+    @Test
+    void filterTransactionsByLowRisk()
+            throws Exception {
+
+        mockMvc.perform(
+                get("/api/risk/transactions")
+                        .param("riskLevel", "LOW")
+        )
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content.length()").value(7))
+        .andExpect(jsonPath("$.totalElements").value(7))
+        .andExpect(jsonPath("$.totalPages").value(1));
+    }
+
+    @Test
+    void filterTransactionsByMinimumRiskScore()
+                throws Exception {
+
+        mockMvc.perform(
+                get("/api/risk/transactions")
+                        .param("minScore", "50")
+        )
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content.length()").value(3))
+        .andExpect(jsonPath("$.totalElements").value(3))
+        .andExpect(jsonPath("$.totalPages").value(1));
+    }
+
+    @Test
+    void filterTransactionsByMinimumRiskScore55()
+                throws Exception {
+
+        mockMvc.perform(
+                get("/api/risk/transactions")
+                        .param("minScore", "55")
+        )
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content.length()").value(2))
+        .andExpect(jsonPath("$.totalElements").value(2))
+        .andExpect(jsonPath("$.totalPages").value(1));
+    }
+
+    @Test
+    void filterTransactionsByRiskLevelAndMinimumScore()
+            throws Exception {
+
+        mockMvc.perform(
+                get("/api/risk/transactions")
+                        .param("riskLevel", "MEDIUM")
+                        .param("minScore", "50")
+        )
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content.length()").value(3))
+        .andExpect(jsonPath("$.totalElements").value(3))
+        .andExpect(jsonPath("$.totalPages").value(1));
+    }
+
+        @Test
+        void paginationShouldReturnFirstFiveTransactions()
+                throws Exception {
+
+        mockMvc.perform(
+                get("/api/risk/transactions")
+                        .param("page", "0")
+                        .param("size", "5")
+        )
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content.length()").value(5))
+        .andExpect(jsonPath("$.page").value(0))
+        .andExpect(jsonPath("$.size").value(5))
+        .andExpect(jsonPath("$.totalElements").value(10))
+        .andExpect(jsonPath("$.totalPages").value(2));
+        }
+
+        @Test
+        void paginationShouldReturnSecondPage()
+                throws Exception {
+
+        mockMvc.perform(
+                get("/api/risk/transactions")
+                        .param("page", "1")
+                        .param("size", "5")
+        )
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content.length()").value(5))
+        .andExpect(jsonPath("$.page").value(1))
+        .andExpect(jsonPath("$.size").value(5))
+        .andExpect(jsonPath("$.totalElements").value(10))
+        .andExpect(jsonPath("$.totalPages").value(2));
+        }
+
+        @Test
+        void paginationShouldWorkWithRiskFilter()
+                throws Exception {
+
+        mockMvc.perform(
+                get("/api/risk/transactions")
+                        .param("riskLevel", "MEDIUM")
+                        .param("page", "0")
+                        .param("size", "2")
+        )
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content.length()").value(2))
+        .andExpect(jsonPath("$.page").value(0))
+        .andExpect(jsonPath("$.size").value(2))
+        .andExpect(jsonPath("$.totalElements").value(3))
+        .andExpect(jsonPath("$.totalPages").value(2));
+        }
 }
 

@@ -1,11 +1,18 @@
 package com.vighnesh.controller;
 
 import model.RiskReport;
+import model.RiskSeverity;
 import model.RiskSummary;
+import model.RiskTransactionResponse;
 import com.vighnesh.service.RiskAnalysisService;
+
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+import model.RiskTransactionPage;
 
 @RestController
 @RequestMapping("/api/risk")
@@ -28,6 +35,31 @@ public class RiskController {
                 riskAnalysisService.analyzeTransaction(transactionId);
 
         return ResponseEntity.ok(report);
+    }
+
+    @GetMapping("/transactions")
+    public ResponseEntity<RiskTransactionPage> getRiskTransactions(
+            @RequestParam(required = false)
+            RiskSeverity riskLevel,
+
+            @RequestParam(required = false)
+            Integer minScore,
+
+            @RequestParam(defaultValue = "0")
+            int page,
+
+            @RequestParam(defaultValue = "10")
+            int size)
+            throws Exception {
+
+        return ResponseEntity.ok(
+                riskAnalysisService.analyzeTransactions(
+                        riskLevel,
+                        minScore,
+                        page,
+                        size
+                )
+        );
     }
 
     @GetMapping("/summary")

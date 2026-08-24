@@ -4,17 +4,22 @@ import com.vighnesh.exception.TransactionNotFoundException;
 import model.RiskReport;
 import model.RiskSeverity;
 import model.RiskSummary;
+import model.RiskTransactionResponse;
 import model.Transaction;
+import model.RiskTransactionPage;
 import repository.TransactionRepository;
 import rule.DuplicateTransactionRule;
 import rule.HighAmountRule;
 import rule.UnusualTimeRule;
 import service.RiskEngine;
 
+
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class RiskAnalysisService {
@@ -129,6 +134,130 @@ public class RiskAnalysisService {
                 totalFindings,
                 highestRiskTransactionId,
                 highestRiskScore
+        );
+    }
+
+    public List<RiskTransactionResponse> analyzeAllTransactions()
+            throws Exception {
+
+        List<Transaction> transactions =
+                transactionRepository.findAll();
+
+        RiskEngine engine = new RiskEngine();
+
+        engine.addRule(new HighAmountRule());
+        engine.addRule(new UnusualTimeRule());
+
+        engine.addDatasetRule(
+                new DuplicateTransactionRule()
+        );
+
+        List<RiskTransactionResponse> results =
+                new ArrayList<>();
+
+        for (Transaction transaction : transactions) {
+
+            RiskReport report =
+                    engine.analyze(
+                            transaction,
+                            transactions
+                    );
+
+            results.add(
+                    new RiskTransactionResponse(
+                            transaction.getId(),
+                            transaction.getVendor(),
+                            transaction.getEmployee(),
+                            transaction.getAmount(),
+                            transaction.getCategory(),
+                            report.getRiskScore(),
+                            report.getRiskLevel(),
+                            report.getFindings()
+                    )
+            );
+        }
+
+        return results;
+    }
+
+
+    public RiskTransactionPage analyzeTransactions(
+            RiskSeverity riskLevel,
+            Integer minScore,
+            int page,
+            int size)
+            throws Exception {
+
+        if (page < 0) {
+            throw new IllegalArgumentException(
+                    "Page must be greater than or equal to 0"
+            );
+        }
+
+        if (size <= 0) {
+            throw new IllegalArgumentException(
+                    "Size must be greater than 0"
+            );
+        }
+
+        // Get all analyzed transactions
+        List<RiskTransactionResponse> results =
+                analyzeAllTransactions();
+
+        // Filter by risk level
+        if (riskLevel != null) {
+            results = results.stream()
+                    .filter(transaction ->
+                            transaction.getRiskLevel() == riskLevel)
+                    .collect(Collectors.toList());
+        }
+
+        // Filter by minimum score
+        if (minScore != null) {
+            results = results.stream()
+                    .filter(transaction ->
+                            transaction.getRiskScore() >= minScore)
+                    .collect(Collectors.toList());
+        }
+
+        // Total number AFTER filtering
+        long totalElements = results.size();
+
+        // Calculate total pages
+        int totalPages =
+                totalElements == 0
+                        ? 0
+                        : (int) Math.ceil(
+                                (double) totalElements / size
+                        );
+
+        // Calculate starting index
+        int start = page * size;
+
+        // Requested page is beyond available data
+        if (start >= totalElements) {
+            return new RiskTransactionPage(
+                    List.of(),
+                    page,
+                    size,
+                    totalElements,
+                    totalPages
+            );
+        }
+
+        // Calculate ending index
+        int end =
+                Math.min(start + size, results.size());
+
+        List<RiskTransactionResponse> content =
+                results.subList(start, end);
+
+        return new RiskTransactionPage(
+                content,
+                page,
+                size,
+                totalElements,
+                totalPages
         );
     }
 }
