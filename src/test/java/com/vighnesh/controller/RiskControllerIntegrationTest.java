@@ -1,10 +1,12 @@
 package com.vighnesh.controller;
 
 import com.vighnesh.FinancialAuditRiskApplication;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
@@ -12,8 +14,13 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+import repository.RiskFindingRepository;
+import repository.RiskAnalysisRunRepository;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest(
@@ -58,6 +65,23 @@ class RiskControllerIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @Autowired
+    private RiskFindingRepository riskFindingRepository;
+
+    @Autowired
+    private RiskAnalysisRunRepository riskAnalysisRunRepository;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
+    @BeforeEach
+    void cleanAuditHistory() {
+
+        jdbcTemplate.execute(
+                "TRUNCATE TABLE risk_findings, risk_analysis_runs RESTART IDENTITY CASCADE"
+        );
+    }
 
     @Test
     void contextLoads() {
@@ -269,5 +293,155 @@ class RiskControllerIntegrationTest {
         .andExpect(jsonPath("$.totalElements").value(3))
         .andExpect(jsonPath("$.totalPages").value(2));
         }
+
+    @Test
+    void analyzeTransactionShouldPersistFindings()
+            throws Exception {
+
+        mockMvc.perform(
+                post("/api/risk/analyze/TXN008")
+        )
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.riskScore").value(50))
+        .andExpect(jsonPath("$.riskLevel").value("MEDIUM"))
+        .andExpect(jsonPath("$.findings.length()").value(2));
+    }
+
+    @Test
+    void repeatedAnalysisShouldNotDuplicateFindings()
+            throws Exception {
+
+        mockMvc.perform(
+                post("/api/risk/analyze/TXN008")
+        )
+        .andExpect(status().isOk());
+
+        mockMvc.perform(
+                post("/api/risk/analyze/TXN008")
+        )
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.findings.length()").value(2));
+    }
+
+    @Test
+    void analyzeUnknownTransactionShouldReturn404()
+            throws Exception {
+
+        mockMvc.perform(
+                post("/api/risk/analyze/DOES_NOT_EXIST")
+        )
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.status").value(404))
+        .andExpect(
+                jsonPath("$.error").value("Not Found")
+        );
+    }
+
+    @Test
+    void repeatedAnalysisShouldPersistExactlyOneSetOfFindings()
+            throws Exception {
+
+        mockMvc.perform(
+                post("/api/risk/analyze/TXN008")
+        )
+        .andExpect(status().isOk());
+
+        int firstCount =
+                riskFindingRepository.countByTransactionId(
+                        "TXN008"
+                );
+
+        assertEquals(2, firstCount);
+
+        mockMvc.perform(
+                post("/api/risk/analyze/TXN008")
+        )
+        .andExpect(status().isOk());
+
+        int secondCount =
+                riskFindingRepository.countByTransactionId(
+                        "TXN008"
+                );
+
+        assertEquals(4, secondCount);
+    }
+
+    @Test
+    void getPersistedFindingsShouldReturnStoredFindings()
+            throws Exception {
+
+        mockMvc.perform(
+                post("/api/risk/analyze/TXN008")
+        )
+        .andExpect(status().isOk());
+
+        mockMvc.perform(
+                get("/api/risk/transactions/TXN008/findings")
+        )
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.length()").value(2))
+        .andExpect(jsonPath("$[0].type").exists())
+        .andExpect(jsonPath("$[0].score").exists())
+        .andExpect(jsonPath("$[0].severity").exists())
+        .andExpect(jsonPath("$[0].explanation").exists());
+    }
+
+    @Test
+    void getPersistedFindingsShouldReturnCorrectRiskData()
+            throws Exception {
+
+        mockMvc.perform(
+                post("/api/risk/analyze/TXN008")
+        )
+        .andExpect(status().isOk());
+
+        mockMvc.perform(
+                get("/api/risk/transactions/TXN008/findings")
+        )
+        .andExpect(status().isOk())
+        .andExpect(
+                jsonPath("$[?(@.type == 'HIGH_AMOUNT')]")
+                        .exists()
+        )
+        .andExpect(
+                jsonPath("$[?(@.type == 'UNUSUAL_TRANSACTION_TIME')]")
+                        .exists()
+        );
+    }
+
+    @Test
+    void getPersistedFindingsForUnknownTransactionShouldReturn404()
+            throws Exception {
+
+        mockMvc.perform(
+                get("/api/risk/transactions/DOES_NOT_EXIST/findings")
+        )
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.status").value(404))
+        .andExpect(
+                jsonPath("$.error").value("Not Found")
+        );
+    }
+
+    @Test
+    void repeatedAnalysisShouldCreateSeparateAnalysisRuns()
+            throws Exception {
+
+        mockMvc.perform(
+                post("/api/risk/analyze/TXN008")
+        )
+        .andExpect(status().isOk());
+
+        mockMvc.perform(
+                post("/api/risk/analyze/TXN008")
+        )
+        .andExpect(status().isOk());
+
+        int runCount =
+                riskAnalysisRunRepository
+                        .countByTransactionId("TXN008");
+
+        assertEquals(2, runCount);
+    }
 }
 

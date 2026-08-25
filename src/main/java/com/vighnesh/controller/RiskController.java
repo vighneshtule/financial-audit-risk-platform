@@ -1,6 +1,8 @@
 package com.vighnesh.controller;
 
+import model.RiskFinding;
 import model.RiskReport;
+
 import model.RiskSeverity;
 import model.RiskSummary;
 import model.RiskTransactionResponse;
@@ -33,6 +35,31 @@ public class RiskController {
 
         RiskReport report =
                 riskAnalysisService.analyzeTransaction(transactionId);
+
+        return ResponseEntity.ok(report);
+    }
+
+    @GetMapping("/transactions/{transactionId}/findings")
+    public ResponseEntity<List<RiskFinding>> getPersistedFindings(
+            @PathVariable String transactionId)
+            throws Exception {
+
+        return ResponseEntity.ok(
+                riskAnalysisService.getPersistedFindings(
+                        transactionId
+                )
+        );
+    }
+
+    @PostMapping("/analyze/{transactionId}")
+    public ResponseEntity<RiskReport> analyzeAndPersistTransaction(
+            @PathVariable String transactionId)
+            throws Exception {
+
+        RiskReport report =
+                riskAnalysisService.analyzeAndPersistTransaction(
+                        transactionId
+                );
 
         return ResponseEntity.ok(report);
     }

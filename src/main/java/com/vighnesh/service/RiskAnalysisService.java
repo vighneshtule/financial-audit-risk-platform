@@ -1,6 +1,8 @@
 package com.vighnesh.service;
 
 import com.vighnesh.exception.TransactionNotFoundException;
+import model.RiskAnalysisRun;
+import model.RiskFinding;
 import model.RiskReport;
 import model.RiskSeverity;
 import model.RiskSummary;
@@ -8,6 +10,8 @@ import model.RiskTransactionResponse;
 import model.Transaction;
 import model.RiskTransactionPage;
 import repository.TransactionRepository;
+import repository.RiskFindingRepository;
+import repository.RiskAnalysisRunRepository;
 import rule.DuplicateTransactionRule;
 import rule.HighAmountRule;
 import rule.UnusualTimeRule;
@@ -25,11 +29,17 @@ import java.util.stream.Collectors;
 public class RiskAnalysisService {
 
     private final TransactionRepository transactionRepository;
+    private final RiskFindingRepository riskFindingRepository;
+    private final RiskAnalysisRunRepository riskAnalysisRunRepository;
 
     public RiskAnalysisService(
-            TransactionRepository transactionRepository) {
+            TransactionRepository transactionRepository,
+            RiskFindingRepository riskFindingRepository,
+            RiskAnalysisRunRepository riskAnalysisRunRepository) {
 
         this.transactionRepository = transactionRepository;
+        this.riskFindingRepository = riskFindingRepository;
+        this.riskAnalysisRunRepository = riskAnalysisRunRepository;
     }
 
     public RiskReport analyzeTransaction(String transactionId)
@@ -258,6 +268,107 @@ public class RiskAnalysisService {
                 size,
                 totalElements,
                 totalPages
+        );
+    }
+    public void saveRiskFindings(
+            long analysisRunId,
+            String transactionId,
+            RiskReport report)
+            throws Exception {
+
+        for (var finding : report.getFindings()) {
+
+            riskFindingRepository.save(
+                    analysisRunId,
+                    transactionId,
+                    finding
+            );
+        }
+    }
+
+    public RiskReport analyzeAndPersistTransaction(
+            String transactionId)
+            throws Exception {
+
+        List<Transaction> transactions =
+                transactionRepository.findAll();
+
+        Transaction transaction =
+                transactions.stream()
+                        .filter(t ->
+                                t.getId().equals(transactionId))
+                        .findFirst()
+                        .orElse(null);
+
+        if (transaction == null) {
+
+            throw new TransactionNotFoundException(
+                    transactionId
+            );
+        }
+
+        RiskEngine engine = new RiskEngine();
+
+        engine.addRule(
+                new HighAmountRule()
+        );
+
+        engine.addRule(
+                new UnusualTimeRule()
+        );
+
+        engine.addDatasetRule(
+                new DuplicateTransactionRule()
+        );
+
+        RiskReport report =
+                engine.analyze(
+                        transaction,
+                        transactions
+                );
+
+        long analysisRunId =
+                riskAnalysisRunRepository.save(
+                        transactionId,
+                        report.getRiskScore(),
+                        report.getRiskLevel()
+                );
+
+        saveRiskFindings(
+                analysisRunId,
+                transactionId,
+                report
+        );
+
+        return report;
+    }
+
+    public List<RiskFinding> getPersistedFindings(
+            String transactionId)
+            throws Exception {
+
+        Transaction transaction =
+                transactionRepository.findById(transactionId);
+
+        if (transaction == null) {
+
+            throw new TransactionNotFoundException(
+                    transactionId
+            );
+        }
+
+        RiskAnalysisRun latestRun =
+                riskAnalysisRunRepository
+                        .findLatestByTransactionId(
+                                transactionId
+                        );
+
+        if (latestRun == null) {
+            return List.of();
+        }
+
+        return riskFindingRepository.findByAnalysisRunId(
+                latestRun.getId()
         );
     }
 }
