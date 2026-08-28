@@ -1,6 +1,8 @@
 package com.vighnesh.service;
 
 import com.vighnesh.exception.TransactionNotFoundException;
+import model.RiskAnalysisHistoryItem;
+import model.RiskAnalysisHistoryResponse;
 import model.RiskAnalysisRun;
 import model.RiskFinding;
 import model.RiskReport;
@@ -10,8 +12,8 @@ import model.RiskTransactionResponse;
 import model.Transaction;
 import model.RiskTransactionPage;
 import repository.TransactionRepository;
-import repository.RiskFindingRepository;
 import repository.RiskAnalysisRunRepository;
+import repository.RiskFindingRepository;
 import rule.DuplicateTransactionRule;
 import rule.HighAmountRule;
 import rule.UnusualTimeRule;
@@ -29,17 +31,19 @@ import java.util.stream.Collectors;
 public class RiskAnalysisService {
 
     private final TransactionRepository transactionRepository;
-    private final RiskFindingRepository riskFindingRepository;
     private final RiskAnalysisRunRepository riskAnalysisRunRepository;
+    private final RiskFindingRepository riskFindingRepository;
 
     public RiskAnalysisService(
             TransactionRepository transactionRepository,
-            RiskFindingRepository riskFindingRepository,
-            RiskAnalysisRunRepository riskAnalysisRunRepository) {
+            RiskAnalysisRunRepository riskAnalysisRunRepository,
+            RiskFindingRepository riskFindingRepository) {
 
         this.transactionRepository = transactionRepository;
-        this.riskFindingRepository = riskFindingRepository;
-        this.riskAnalysisRunRepository = riskAnalysisRunRepository;
+        this.riskAnalysisRunRepository =
+                riskAnalysisRunRepository;
+        this.riskFindingRepository =
+                riskFindingRepository;
     }
 
     public RiskReport analyzeTransaction(String transactionId)
@@ -369,6 +373,57 @@ public class RiskAnalysisService {
 
         return riskFindingRepository.findByAnalysisRunId(
                 latestRun.getId()
+        );
+    }
+
+    public RiskAnalysisHistoryResponse getTransactionRiskHistory(
+            String transactionId)
+            throws Exception {
+
+        List<Transaction> transactions =
+                transactionRepository.findAll();
+
+        boolean transactionExists =
+                transactions.stream()
+                        .anyMatch(transaction ->
+                                transaction.getId()
+                                        .equals(transactionId));
+
+        if (!transactionExists) {
+            throw new TransactionNotFoundException(
+                    transactionId
+            );
+        }
+
+        List<RiskAnalysisRun> runs =
+                riskAnalysisRunRepository
+                        .findByTransactionId(transactionId);
+
+        List<RiskAnalysisHistoryItem> history =
+                new ArrayList<>();
+
+        for (RiskAnalysisRun run : runs) {
+
+            List<RiskFinding> findings =
+                    riskFindingRepository
+                            .findByAnalysisRunId(
+                                    run.getId()
+                            );
+
+            history.add(
+                    new RiskAnalysisHistoryItem(
+                            run.getId(),
+                            run.getAnalyzedAt(),
+                            run.getRiskScore(),
+                            run.getRiskLevel(),
+                            findings
+                    )
+            );
+        }
+
+        return new RiskAnalysisHistoryResponse(
+                transactionId,
+                history
         );
     }
 }

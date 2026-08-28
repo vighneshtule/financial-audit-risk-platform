@@ -1,5 +1,6 @@
 package com.vighnesh.controller;
 
+import model.RiskAnalysisHistoryResponse;
 import model.RiskFinding;
 import model.RiskReport;
 
@@ -46,6 +47,19 @@ public class RiskController {
 
         return ResponseEntity.ok(
                 riskAnalysisService.getPersistedFindings(
+                        transactionId
+                )
+        );
+    }
+
+    @GetMapping("/transactions/{transactionId}/history")
+    public ResponseEntity<RiskAnalysisHistoryResponse>
+    getTransactionRiskHistory(
+            @PathVariable String transactionId)
+            throws Exception {
+
+        return ResponseEntity.ok(
+                riskAnalysisService.getTransactionRiskHistory(
                         transactionId
                 )
         );
