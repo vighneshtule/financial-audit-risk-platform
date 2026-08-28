@@ -10,7 +10,8 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Timestamp;
+import java.util.ArrayList;
+import java.util.List;
 
 @Repository
 public class RiskAnalysisRunRepository {
@@ -109,6 +110,59 @@ public class RiskAnalysisRunRepository {
                 );
             }
         }
+    }
+
+    public List<RiskAnalysisRun> findByTransactionId(
+            String transactionId)
+            throws SQLException {
+
+        String sql = """
+                SELECT
+                    id,
+                    transaction_id,
+                    risk_score,
+                    risk_level,
+                    analyzed_at
+                FROM risk_analysis_runs
+                WHERE transaction_id = ?
+                ORDER BY analyzed_at DESC, id DESC
+                """;
+
+        List<RiskAnalysisRun> runs =
+                new ArrayList<>();
+
+        try (
+                Connection connection =
+                        dataSource.getConnection();
+
+                PreparedStatement statement =
+                        connection.prepareStatement(sql)
+        ) {
+
+                statement.setString(1, transactionId);
+
+                try (ResultSet resultSet =
+                        statement.executeQuery()) {
+
+                        while (resultSet.next()) {
+
+                                runs.add(
+                                        new RiskAnalysisRun(
+                                                resultSet.getLong("id"),
+                                                resultSet.getString("transaction_id"),
+                                                resultSet.getInt("risk_score"),
+                                                RiskSeverity.valueOf(
+                                                        resultSet.getString("risk_level")
+                                                ),
+                                                resultSet.getTimestamp("analyzed_at")
+                                                        .toLocalDateTime()
+                                        )
+                                );
+                        }
+                }
+        }
+
+        return runs;
     }
 
     public int countByTransactionId(

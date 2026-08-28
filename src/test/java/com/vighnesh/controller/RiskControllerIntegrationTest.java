@@ -443,5 +443,66 @@ class RiskControllerIntegrationTest {
 
         assertEquals(2, runCount);
     }
+
+    @Test
+    void getTransactionRiskHistoryShouldReturnAnalysisRuns()
+            throws Exception {
+
+        mockMvc.perform(
+                post("/api/risk/analyze/TXN008")
+        )
+        .andExpect(status().isOk());
+
+        mockMvc.perform(
+                get("/api/risk/transactions/TXN008/history")
+        )
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.transactionId").value("TXN008"))
+        .andExpect(jsonPath("$.analysisRuns").isArray())
+        .andExpect(jsonPath("$.analysisRuns.length()").value(1))
+        .andExpect(jsonPath("$.analysisRuns[0].riskScore").value(50))
+        .andExpect(jsonPath("$.analysisRuns[0].riskLevel").value("MEDIUM"))
+        .andExpect(jsonPath("$.analysisRuns[0].findings").isArray())
+        .andExpect(jsonPath("$.analysisRuns[0].findings.length()").value(2));
+    }
+
+    @Test
+    void getTransactionRiskHistoryShouldPreserveMultipleRuns()
+            throws Exception {
+
+        mockMvc.perform(
+                post("/api/risk/analyze/TXN008")
+        )
+        .andExpect(status().isOk());
+
+        mockMvc.perform(
+                post("/api/risk/analyze/TXN008")
+        )
+        .andExpect(status().isOk());
+
+        mockMvc.perform(
+                get("/api/risk/transactions/TXN008/history")
+        )
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.transactionId").value("TXN008"))
+        .andExpect(jsonPath("$.analysisRuns").isArray())
+        .andExpect(jsonPath("$.analysisRuns.length()").value(2))
+        .andExpect(jsonPath("$.analysisRuns[0].findings").isArray())
+        .andExpect(jsonPath("$.analysisRuns[0].findings.length()").value(2))
+        .andExpect(jsonPath("$.analysisRuns[1].findings").isArray())
+        .andExpect(jsonPath("$.analysisRuns[1].findings.length()").value(2));
+    }
+
+    @Test
+    void getUnknownTransactionHistoryShouldReturn404()
+            throws Exception {
+
+        mockMvc.perform(
+                get("/api/risk/transactions/DOES_NOT_EXIST/history")
+        )
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.status").value(404))
+        .andExpect(jsonPath("$.error").value("Not Found"));
+    }
 }
 
