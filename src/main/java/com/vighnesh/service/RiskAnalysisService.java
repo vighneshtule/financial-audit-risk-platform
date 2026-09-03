@@ -482,6 +482,12 @@ public class RiskAnalysisService {
             );
         }
 
+        if (size > 100) {
+            throw new IllegalArgumentException(
+                    "Size must not exceed 100"
+            );
+        }
+
         Transaction transaction =
                 transactionRepository.findById(transactionId);
 

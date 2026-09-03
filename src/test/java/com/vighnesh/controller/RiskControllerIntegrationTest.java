@@ -805,6 +805,21 @@ class RiskControllerIntegrationTest {
     }
 
     @Test
+    void paginatedHistoryShouldReturn400ForSizeAboveMaximum() throws Exception {
+
+        mockMvc.perform(
+                        get("/api/risk/transactions/TXN001/history/page")
+                                .param("page", "0")
+                                .param("size", "101")
+                )
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("Bad Request"))
+                .andExpect(jsonPath("$.message")
+                        .value("Size must not exceed 100"));
+    }
+
+    @Test
     void paginatedHistoryForUnknownTransactionShouldReturn404()
             throws Exception {
 
