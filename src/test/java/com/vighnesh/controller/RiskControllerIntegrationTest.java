@@ -629,5 +629,195 @@ class RiskControllerIntegrationTest {
                         )
         );
     }
+
+    @Test
+    void paginatedHistoryShouldReturnFirstPage()
+            throws Exception {
+
+        mockMvc.perform(
+                post("/api/risk/analyze/TXN008")
+        )
+        .andExpect(status().isOk());
+
+        mockMvc.perform(
+                get("/api/risk/transactions/TXN008/history/page")
+                        .param("page", "0")
+                        .param("size", "1")
+        )
+        .andExpect(status().isOk())
+        .andExpect(
+                jsonPath("$.transactionId")
+                        .value("TXN008")
+        )
+        .andExpect(
+                jsonPath("$.content.length()")
+                        .value(1)
+        )
+        .andExpect(
+                jsonPath("$.page")
+                        .value(0)
+        )
+        .andExpect(
+                jsonPath("$.size")
+                        .value(1)
+        )
+        .andExpect(
+                jsonPath("$.totalElements")
+                        .value(1)
+        )
+        .andExpect(
+                jsonPath("$.totalPages")
+                        .value(1)
+        );
+    }
+
+    @Test
+    void paginatedHistoryShouldReturnMultiplePages()
+            throws Exception {
+
+        mockMvc.perform(
+                post("/api/risk/analyze/TXN008")
+        )
+        .andExpect(status().isOk());
+
+        mockMvc.perform(
+                post("/api/risk/analyze/TXN008")
+        )
+        .andExpect(status().isOk());
+
+        mockMvc.perform(
+                get("/api/risk/transactions/TXN008/history/page")
+                        .param("page", "0")
+                        .param("size", "1")
+        )
+        .andExpect(status().isOk())
+        .andExpect(
+                jsonPath("$.content.length()")
+                        .value(1)
+        )
+        .andExpect(
+                jsonPath("$.page")
+                        .value(0)
+        )
+        .andExpect(
+                jsonPath("$.size")
+                        .value(1)
+        )
+        .andExpect(
+                jsonPath("$.totalElements")
+                        .value(2)
+        )
+        .andExpect(
+                jsonPath("$.totalPages")
+                        .value(2)
+        );
+
+        mockMvc.perform(
+                get("/api/risk/transactions/TXN008/history/page")
+                        .param("page", "1")
+                        .param("size", "1")
+        )
+        .andExpect(status().isOk())
+        .andExpect(
+                jsonPath("$.content.length()")
+                        .value(1)
+        )
+        .andExpect(
+                jsonPath("$.page")
+                        .value(1)
+        )
+        .andExpect(
+                jsonPath("$.size")
+                        .value(1)
+        )
+        .andExpect(
+                jsonPath("$.totalElements")
+                        .value(2)
+        )
+        .andExpect(
+                jsonPath("$.totalPages")
+                        .value(2)
+        );
+    }
+
+    @Test
+    void paginatedHistoryShouldReturnEmptyPageWhenBeyondLastPage()
+            throws Exception {
+
+        mockMvc.perform(
+                post("/api/risk/analyze/TXN008")
+        )
+        .andExpect(status().isOk());
+
+        mockMvc.perform(
+                get("/api/risk/transactions/TXN008/history/page")
+                        .param("page", "5")
+                        .param("size", "10")
+        )
+        .andExpect(status().isOk())
+        .andExpect(
+                jsonPath("$.content").isArray()
+        )
+        .andExpect(
+                jsonPath("$.content.length()")
+                        .value(0)
+        )
+        .andExpect(
+                jsonPath("$.page")
+                        .value(5)
+        )
+        .andExpect(
+                jsonPath("$.size")
+                        .value(10)
+        )
+        .andExpect(
+                jsonPath("$.totalElements")
+                        .value(1)
+        )
+        .andExpect(
+                jsonPath("$.totalPages")
+                        .value(1)
+        );
+    }
+
+    @Test
+    void paginatedHistoryShouldReturn400ForNegativePage()
+            throws Exception {
+
+        mockMvc.perform(
+                get("/api/risk/transactions/TXN008/history/page")
+                        .param("page", "-1")
+                        .param("size", "10")
+        )
+        .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void paginatedHistoryShouldReturn400ForInvalidSize()
+            throws Exception {
+
+        mockMvc.perform(
+                get("/api/risk/transactions/TXN008/history/page")
+                        .param("page", "0")
+                        .param("size", "0")
+        )
+        .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void paginatedHistoryForUnknownTransactionShouldReturn404()
+            throws Exception {
+
+        mockMvc.perform(
+                get(
+                        "/api/risk/transactions/DOES_NOT_EXIST/history/page"
+                )
+                .param("page", "0")
+                .param("size", "10")
+        )
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.status").value(404))
+        .andExpect(jsonPath("$.error").value("Not Found"));
+    }
 }
 
