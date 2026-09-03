@@ -1,7 +1,9 @@
 package com.vighnesh.service;
 
+import com.vighnesh.exception.AnalysisRunNotFoundException;
 import com.vighnesh.exception.TransactionNotFoundException;
 import model.RiskAnalysisHistoryItem;
+import model.RiskAnalysisHistoryPage;
 import model.RiskAnalysisHistoryResponse;
 import model.RiskAnalysisRun;
 import model.RiskFinding;
@@ -380,16 +382,10 @@ public class RiskAnalysisService {
             String transactionId)
             throws Exception {
 
-        List<Transaction> transactions =
-                transactionRepository.findAll();
+        Transaction transaction =
+                transactionRepository.findById(transactionId);
 
-        boolean transactionExists =
-                transactions.stream()
-                        .anyMatch(transaction ->
-                                transaction.getId()
-                                        .equals(transactionId));
-
-        if (!transactionExists) {
+        if (transaction == null) {
             throw new TransactionNotFoundException(
                     transactionId
             );
@@ -424,6 +420,115 @@ public class RiskAnalysisService {
         return new RiskAnalysisHistoryResponse(
                 transactionId,
                 history
+        );
+    }
+
+    public RiskAnalysisHistoryItem getTransactionRiskHistoryRun(
+            String transactionId,
+            long analysisRunId)
+            throws Exception {
+
+        Transaction transaction =
+                transactionRepository.findById(transactionId);
+
+        if (transaction == null) {
+            throw new TransactionNotFoundException(
+                    transactionId
+            );
+        }
+
+        RiskAnalysisRun run =
+                riskAnalysisRunRepository
+                        .findByIdAndTransactionId(
+                                analysisRunId,
+                                transactionId
+                        );
+
+        if (run == null) {
+            throw new AnalysisRunNotFoundException(
+                    analysisRunId
+            );
+        }
+
+        List<RiskFinding> findings =
+                riskFindingRepository.findByAnalysisRunId(
+                        run.getId()
+                );
+
+        return new RiskAnalysisHistoryItem(
+                run.getId(),
+                run.getAnalyzedAt(),
+                run.getRiskScore(),
+                run.getRiskLevel(),
+                findings
+        );
+    }
+
+    public RiskAnalysisHistoryPage getTransactionRiskHistoryPage(
+            String transactionId,
+            int page,
+            int size)
+            throws Exception {
+
+        if (page < 0) {
+            throw new IllegalArgumentException(
+                    "Page must be greater than or equal to 0"
+            );
+        }
+
+        if (size <= 0) {
+            throw new IllegalArgumentException(
+                    "Size must be greater than 0"
+            );
+        }
+
+        Transaction transaction =
+                transactionRepository.findById(transactionId);
+
+        if (transaction == null) {
+            throw new TransactionNotFoundException(
+                    transactionId
+            );
+        }
+
+        long totalElements =
+                riskAnalysisRunRepository
+                        .countByTransactionId(transactionId);
+
+        List<RiskAnalysisRun> runs =
+                riskAnalysisRunRepository.findByTransactionId(
+                        transactionId,
+                        page,
+                        size
+                );
+
+        List<RiskAnalysisHistoryItem> history =
+                new ArrayList<>();
+
+        for (RiskAnalysisRun run : runs) {
+
+            List<RiskFinding> findings =
+                    riskFindingRepository.findByAnalysisRunId(
+                            run.getId()
+                    );
+
+            history.add(
+                    new RiskAnalysisHistoryItem(
+                            run.getId(),
+                            run.getAnalyzedAt(),
+                            run.getRiskScore(),
+                            run.getRiskLevel(),
+                            findings
+                    )
+            );
+        }
+
+        return new RiskAnalysisHistoryPage(
+                transactionId,
+                history,
+                page,
+                size,
+                totalElements
         );
     }
 }

@@ -504,5 +504,130 @@ class RiskControllerIntegrationTest {
         .andExpect(jsonPath("$.status").value(404))
         .andExpect(jsonPath("$.error").value("Not Found"));
     }
+
+    @Test
+    void getSpecificAnalysisRunShouldReturnHistoricalRun()
+            throws Exception {
+
+        mockMvc.perform(
+                post("/api/risk/analyze/TXN008")
+        )
+        .andExpect(status().isOk());
+
+        long analysisRunId =
+                riskAnalysisRunRepository
+                        .findLatestByTransactionId("TXN008")
+                        .getId();
+
+        mockMvc.perform(
+                get(
+                        "/api/risk/transactions/TXN008/history/"
+                                + analysisRunId
+                )
+        )
+        .andExpect(status().isOk())
+        .andExpect(
+                jsonPath("$.analysisRunId")
+                        .value(analysisRunId)
+        )
+        .andExpect(
+                jsonPath("$.riskScore")
+                        .value(50)
+        )
+        .andExpect(
+                jsonPath("$.riskLevel")
+                        .value("MEDIUM")
+        );
+    }
+
+    @Test
+    void getSpecificAnalysisRunShouldReturnItsFindings()
+            throws Exception {
+
+        mockMvc.perform(
+                post("/api/risk/analyze/TXN008")
+        )
+        .andExpect(status().isOk());
+
+        long analysisRunId =
+                riskAnalysisRunRepository
+                        .findLatestByTransactionId("TXN008")
+                        .getId();
+
+        mockMvc.perform(
+                get(
+                        "/api/risk/transactions/TXN008/history/"
+                                + analysisRunId
+                )
+        )
+        .andExpect(status().isOk())
+        .andExpect(
+                jsonPath("$.findings").isArray()
+        )
+        .andExpect(
+                jsonPath("$.findings.length()")
+                        .value(2)
+        )
+        .andExpect(
+                jsonPath(
+                        "$.findings[?(@.type == 'HIGH_AMOUNT')]"
+                ).exists()
+        )
+        .andExpect(
+                jsonPath(
+                        "$.findings[?(@.type == 'UNUSUAL_TRANSACTION_TIME')]"
+                ).exists()
+        );
+    }
+
+    @Test
+    void getUnknownAnalysisRunShouldReturn404()
+            throws Exception {
+
+        mockMvc.perform(
+                get(
+                        "/api/risk/transactions/TXN008/history/999999"
+                )
+        )
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.status").value(404))
+        .andExpect(jsonPath("$.error").value("Not Found"))
+        .andExpect(
+                jsonPath("$.message")
+                        .value("Analysis run not found: 999999")
+        );
+    }
+
+    @Test
+    void getAnalysisRunBelongingToAnotherTransactionShouldReturn404()
+            throws Exception {
+
+        mockMvc.perform(
+                post("/api/risk/analyze/TXN008")
+        )
+        .andExpect(status().isOk());
+
+        long analysisRunId =
+                riskAnalysisRunRepository
+                        .findLatestByTransactionId("TXN008")
+                        .getId();
+
+        mockMvc.perform(
+                get(
+                        "/api/risk/transactions/TXN009/history/"
+                                + analysisRunId
+                )
+        )
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.status").value(404))
+        .andExpect(jsonPath("$.error").value("Not Found"))
+        .andExpect(
+                jsonPath("$.message")
+                        .value(
+                                "Analysis run not found: "
+                                        + analysisRunId
+                        )
+        );
+    }
 }
 

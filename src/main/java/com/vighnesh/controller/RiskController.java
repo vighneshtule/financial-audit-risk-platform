@@ -1,6 +1,8 @@
 package com.vighnesh.controller;
 
 import model.RiskAnalysisHistoryResponse;
+import model.RiskAnalysisHistoryItem;
+import model.RiskAnalysisHistoryPage;
 import model.RiskFinding;
 import model.RiskReport;
 
@@ -109,6 +111,38 @@ public class RiskController {
 
         return ResponseEntity.ok(
                 riskAnalysisService.analyzeSummary()
+        );
+    }
+
+    @GetMapping("/transactions/{transactionId}/history/{analysisRunId}")
+    public ResponseEntity<RiskAnalysisHistoryItem>
+    getTransactionRiskHistoryRun(
+            @PathVariable String transactionId,
+            @PathVariable long analysisRunId)
+            throws Exception {
+
+        return ResponseEntity.ok(
+                riskAnalysisService.getTransactionRiskHistoryRun(
+                        transactionId,
+                        analysisRunId
+                )
+        );
+    }
+
+    @GetMapping("/transactions/{transactionId}/history/page")
+    public ResponseEntity<RiskAnalysisHistoryPage>
+    getTransactionRiskHistoryPage(
+            @PathVariable String transactionId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size)
+            throws Exception {
+
+        return ResponseEntity.ok(
+                riskAnalysisService.getTransactionRiskHistoryPage(
+                        transactionId,
+                        page,
+                        size
+                )
         );
     }
 }
