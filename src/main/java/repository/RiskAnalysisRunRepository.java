@@ -6,6 +6,7 @@ import model.RiskSeverity;
 import org.springframework.stereotype.Repository;
 
 import javax.sql.DataSource;
+import org.springframework.jdbc.datasource.DataSourceUtils;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -38,10 +39,10 @@ public class RiskAnalysisRunRepository {
                 RETURNING id
                 """;
 
-        try (
-                Connection connection =
-                        dataSource.getConnection();
+        Connection connection =
+                DataSourceUtils.getConnection(dataSource);
 
+        try (
                 PreparedStatement statement =
                         connection.prepareStatement(sql)
         ) {
@@ -61,6 +62,12 @@ public class RiskAnalysisRunRepository {
                         "Failed to create risk analysis run"
                 );
             }
+
+        } finally {
+            DataSourceUtils.releaseConnection(
+                    connection,
+                    dataSource
+            );
         }
     }
 

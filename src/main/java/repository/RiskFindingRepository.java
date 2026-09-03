@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 
 import javax.sql.DataSource;
+import org.springframework.jdbc.datasource.DataSourceUtils;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -42,45 +43,28 @@ public class RiskFindingRepository {
                 VALUES (?, ?, ?, ?, ?, ?)
                 """;
 
-        try (
-                Connection connection =
-                        dataSource.getConnection();
+        Connection connection =
+                DataSourceUtils.getConnection(dataSource);
 
+        try (
                 PreparedStatement statement =
                         connection.prepareStatement(sql)
         ) {
 
-            statement.setLong(
-                    1,
-                    analysisRunId
-            );
-
-            statement.setString(
-                    2,
-                    transactionId
-            );
-
-            statement.setString(
-                    3,
-                    finding.getType().name()
-            );
-
-            statement.setInt(
-                    4,
-                    finding.getScore()
-            );
-
-            statement.setString(
-                    5,
-                    finding.getSeverity().name()
-            );
-
-            statement.setString(
-                    6,
-                    finding.getExplanation()
-            );
+            statement.setLong(1, analysisRunId);
+            statement.setString(2, transactionId);
+            statement.setString(3, finding.getType().name());
+            statement.setInt(4, finding.getScore());
+            statement.setString(5, finding.getSeverity().name());
+            statement.setString(6, finding.getExplanation());
 
             statement.executeUpdate();
+
+        } finally {
+            DataSourceUtils.releaseConnection(
+                    connection,
+                    dataSource
+            );
         }
     }
 

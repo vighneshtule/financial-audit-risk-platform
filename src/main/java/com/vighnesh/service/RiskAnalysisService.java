@@ -23,6 +23,7 @@ import service.RiskEngine;
 
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -292,6 +293,7 @@ public class RiskAnalysisService {
         }
     }
 
+    @Transactional
     public RiskReport analyzeAndPersistTransaction(
             String transactionId)
             throws Exception {
