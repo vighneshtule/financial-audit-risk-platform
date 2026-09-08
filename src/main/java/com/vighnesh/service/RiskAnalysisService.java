@@ -16,9 +16,6 @@ import model.RiskTransactionPage;
 import repository.TransactionRepository;
 import repository.RiskAnalysisRunRepository;
 import repository.RiskFindingRepository;
-import rule.DuplicateTransactionRule;
-import rule.HighAmountRule;
-import rule.UnusualTimeRule;
 import service.RiskEngine;
 
 
@@ -37,17 +34,21 @@ public class RiskAnalysisService {
     private final TransactionRepository transactionRepository;
     private final RiskAnalysisRunRepository riskAnalysisRunRepository;
     private final RiskFindingRepository riskFindingRepository;
+    private final RiskEngineFactory riskEngineFactory;
 
     public RiskAnalysisService(
             TransactionRepository transactionRepository,
             RiskAnalysisRunRepository riskAnalysisRunRepository,
-            RiskFindingRepository riskFindingRepository) {
+            RiskFindingRepository riskFindingRepository,
+            RiskEngineFactory riskEngineFactory) {
 
         this.transactionRepository = transactionRepository;
         this.riskAnalysisRunRepository =
                 riskAnalysisRunRepository;
         this.riskFindingRepository =
                 riskFindingRepository;
+        this.riskEngineFactory =
+                riskEngineFactory;
     }
 
     public RiskReport analyzeTransaction(String transactionId)
@@ -65,14 +66,7 @@ public class RiskAnalysisService {
             throw new TransactionNotFoundException(transactionId);
         }
 
-        RiskEngine engine = new RiskEngine();
-
-        engine.addRule(new HighAmountRule());
-        engine.addRule(new UnusualTimeRule());
-
-        engine.addDatasetRule(
-                new DuplicateTransactionRule()
-        );
+        RiskEngine engine = riskEngineFactory.create();
 
         return engine.analyze(
                 transaction,
@@ -98,14 +92,7 @@ public class RiskAnalysisService {
         String highestRiskTransactionId = null;
         int highestRiskScore = -1;
 
-        RiskEngine engine = new RiskEngine();
-
-        engine.addRule(new HighAmountRule());
-        engine.addRule(new UnusualTimeRule());
-
-        engine.addDatasetRule(
-                new DuplicateTransactionRule()
-        );
+        RiskEngine engine = riskEngineFactory.create();
 
         for (Transaction transaction : transactions) {
 
@@ -161,14 +148,7 @@ public class RiskAnalysisService {
         List<Transaction> transactions =
                 transactionRepository.findAll();
 
-        RiskEngine engine = new RiskEngine();
-
-        engine.addRule(new HighAmountRule());
-        engine.addRule(new UnusualTimeRule());
-
-        engine.addDatasetRule(
-                new DuplicateTransactionRule()
-        );
+        RiskEngine engine = riskEngineFactory.create();
 
         List<RiskTransactionResponse> results =
                 new ArrayList<>();
@@ -316,19 +296,7 @@ public class RiskAnalysisService {
             );
         }
 
-        RiskEngine engine = new RiskEngine();
-
-        engine.addRule(
-                new HighAmountRule()
-        );
-
-        engine.addRule(
-                new UnusualTimeRule()
-        );
-
-        engine.addDatasetRule(
-                new DuplicateTransactionRule()
-        );
+        RiskEngine engine = riskEngineFactory.create();
 
         RiskReport report =
                 engine.analyze(

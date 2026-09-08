@@ -1,5 +1,6 @@
 package rule;
 
+import config.RiskConfiguration;
 import model.RiskFinding;
 import model.RiskSeverity;
 import model.RiskType;
@@ -13,10 +14,30 @@ import java.util.WeakHashMap;
 
 public class DuplicateTransactionRule implements DatasetRiskRule {
 
-    private static final long DUPLICATE_WINDOW_MINUTES = 10;
+    private static final long DEFAULT_DUPLICATE_WINDOW_MINUTES = 10;
+    private static final int DEFAULT_SCORE = 25;
+
+    private final long duplicateWindowMinutes;
+    private final int score;
 
     private final Map<List<Transaction>, DuplicateTransactionIndex> cache =
             Collections.synchronizedMap(new WeakHashMap<>());
+
+    public DuplicateTransactionRule() {
+        this(DEFAULT_DUPLICATE_WINDOW_MINUTES, DEFAULT_SCORE);
+    }
+
+    public DuplicateTransactionRule(long duplicateWindowMinutes, int score) {
+        this.duplicateWindowMinutes = duplicateWindowMinutes;
+        this.score = score;
+    }
+
+    public DuplicateTransactionRule(RiskConfiguration.Duplicate config) {
+        this(
+                config != null ? config.getWindowMinutes() : DEFAULT_DUPLICATE_WINDOW_MINUTES,
+                config != null ? config.getScore() : DEFAULT_SCORE
+        );
+    }
 
     @Override
     public RiskFinding evaluate(
@@ -48,10 +69,10 @@ public class DuplicateTransactionRule implements DatasetRiskRule {
                     ).toMinutes()
             );
 
-            if (minutesDifference <= DUPLICATE_WINDOW_MINUTES) {
+            if (minutesDifference <= duplicateWindowMinutes) {
                 return new RiskFinding(
                         RiskType.DUPLICATE_TRANSACTION,
-                        25,
+                        score,
                         RiskSeverity.MEDIUM,
                         "Possible duplicate transaction detected"
                 );
@@ -59,5 +80,13 @@ public class DuplicateTransactionRule implements DatasetRiskRule {
         }
 
         return null;
+    }
+
+    public long getDuplicateWindowMinutes() {
+        return duplicateWindowMinutes;
+    }
+
+    public int getScore() {
+        return score;
     }
 }

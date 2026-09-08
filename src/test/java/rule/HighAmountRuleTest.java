@@ -66,4 +66,37 @@ class HighAmountRuleTest {
 
         assertNull(finding);
     }
+
+    @Test
+    void shouldRespectCustomThresholdAndScore() {
+
+        Transaction transaction = new Transaction(
+                "TXN003",
+                "ABC Suppliers",
+                "EMP101",
+                new BigDecimal("60000.00"),
+                LocalDateTime.of(2026, 8, 20, 10, 0),
+                "Office Supplies"
+        );
+
+        // Custom threshold 50,000 and custom score 45
+        HighAmountRule rule = new HighAmountRule(new BigDecimal("50000"), 45);
+
+        RiskFinding finding = rule.evaluate(transaction);
+
+        assertNotNull(finding);
+        assertEquals(45, finding.getScore());
+        assertEquals(RiskType.HIGH_AMOUNT, finding.getType());
+
+        // For amount below custom threshold
+        Transaction normal = new Transaction(
+                "TXN004",
+                "ABC Suppliers",
+                "EMP101",
+                new BigDecimal("40000.00"),
+                LocalDateTime.of(2026, 8, 20, 10, 0),
+                "Office Supplies"
+        );
+        assertNull(rule.evaluate(normal));
+    }
 }
