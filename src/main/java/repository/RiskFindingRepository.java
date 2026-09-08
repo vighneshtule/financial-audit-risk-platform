@@ -8,11 +8,15 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 
 import javax.sql.DataSource;
+import org.springframework.jdbc.datasource.DataSourceUtils;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Repository
 public class RiskFindingRepository {
@@ -42,45 +46,28 @@ public class RiskFindingRepository {
                 VALUES (?, ?, ?, ?, ?, ?)
                 """;
 
-        try (
-                Connection connection =
-                        dataSource.getConnection();
+        Connection connection =
+                DataSourceUtils.getConnection(dataSource);
 
+        try (
                 PreparedStatement statement =
                         connection.prepareStatement(sql)
         ) {
 
-            statement.setLong(
-                    1,
-                    analysisRunId
-            );
-
-            statement.setString(
-                    2,
-                    transactionId
-            );
-
-            statement.setString(
-                    3,
-                    finding.getType().name()
-            );
-
-            statement.setInt(
-                    4,
-                    finding.getScore()
-            );
-
-            statement.setString(
-                    5,
-                    finding.getSeverity().name()
-            );
-
-            statement.setString(
-                    6,
-                    finding.getExplanation()
-            );
+            statement.setLong(1, analysisRunId);
+            statement.setString(2, transactionId);
+            statement.setString(3, finding.getType().name());
+            statement.setInt(4, finding.getScore());
+            statement.setString(5, finding.getSeverity().name());
+            statement.setString(6, finding.getExplanation());
 
             statement.executeUpdate();
+
+        } finally {
+            DataSourceUtils.releaseConnection(
+                    connection,
+                    dataSource
+            );
         }
     }
 
@@ -110,10 +97,7 @@ public class RiskFindingRepository {
                         connection.prepareStatement(sql)
         ) {
 
-            statement.setString(
-                    1,
-                    transactionId
-            );
+            statement.setString(1, transactionId);
 
             try (var resultSet =
                          statement.executeQuery()) {
@@ -208,6 +192,88 @@ public class RiskFindingRepository {
         }
 
         return findings;
+    }
+
+    public Map<Long, List<RiskFinding>> findByAnalysisRunIds(
+            List<Long> analysisRunIds)
+            throws SQLException {
+
+        if (analysisRunIds == null || analysisRunIds.isEmpty()) {
+            return Map.of();
+        }
+
+        String placeholders =
+                String.join(
+                        ", ",
+                        java.util.Collections.nCopies(
+                                analysisRunIds.size(),
+                                "?"
+                        )
+                );
+
+        String sql = """
+                SELECT
+                    analysis_run_id,
+                    risk_type,
+                    score,
+                    severity,
+                    explanation
+                FROM risk_findings
+                WHERE analysis_run_id IN (%s)
+                ORDER BY analysis_run_id, id
+                """.formatted(placeholders);
+
+        Map<Long, List<RiskFinding>> findingsByRun =
+                new HashMap<>();
+
+        try (
+                Connection connection =
+                        dataSource.getConnection();
+
+                PreparedStatement statement =
+                        connection.prepareStatement(sql)
+        ) {
+
+            for (int i = 0; i < analysisRunIds.size(); i++) {
+                statement.setLong(
+                        i + 1,
+                        analysisRunIds.get(i)
+                );
+            }
+
+            try (var resultSet =
+                         statement.executeQuery()) {
+
+                while (resultSet.next()) {
+                    long runId = resultSet.getLong("analysis_run_id");
+
+                    RiskFinding finding = new RiskFinding(
+                            RiskType.valueOf(
+                                    resultSet.getString(
+                                            "risk_type"
+                                    )
+                            ),
+                            resultSet.getInt(
+                                    "score"
+                            ),
+                            RiskSeverity.valueOf(
+                                    resultSet.getString(
+                                            "severity"
+                                    )
+                            ),
+                            resultSet.getString(
+                                    "explanation"
+                            )
+                    );
+
+                    findingsByRun
+                            .computeIfAbsent(runId, k -> new ArrayList<>())
+                            .add(finding);
+                }
+            }
+        }
+
+        return findingsByRun;
     }
 
     public int countByTransactionId(
