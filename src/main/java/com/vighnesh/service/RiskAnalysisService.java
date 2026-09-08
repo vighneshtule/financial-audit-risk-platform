@@ -28,6 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -380,6 +381,34 @@ public class RiskAnalysisService {
         );
     }
 
+    private List<RiskAnalysisHistoryItem> buildHistory(
+            List<RiskAnalysisRun> runs,
+            Map<Long, List<RiskFinding>> findingsByRun) {
+
+        List<RiskAnalysisHistoryItem> history =
+                new ArrayList<>();
+
+        for (RiskAnalysisRun run : runs) {
+            List<RiskFinding> findings =
+                    findingsByRun.getOrDefault(
+                            run.getId(),
+                            List.of()
+                    );
+
+            history.add(
+                    new RiskAnalysisHistoryItem(
+                            run.getId(),
+                            run.getAnalyzedAt(),
+                            run.getRiskScore(),
+                            run.getRiskLevel(),
+                            findings
+                    )
+            );
+        }
+
+        return history;
+    }
+
     public RiskAnalysisHistoryResponse getTransactionRiskHistory(
             String transactionId)
             throws Exception {
@@ -397,27 +426,18 @@ public class RiskAnalysisService {
                 riskAnalysisRunRepository
                         .findByTransactionId(transactionId);
 
+        List<Long> analysisRunIds =
+                runs.stream()
+                        .map(RiskAnalysisRun::getId)
+                        .toList();
+
+        Map<Long, List<RiskFinding>> findingsByRun =
+                riskFindingRepository.findByAnalysisRunIds(
+                        analysisRunIds
+                );
+
         List<RiskAnalysisHistoryItem> history =
-                new ArrayList<>();
-
-        for (RiskAnalysisRun run : runs) {
-
-            List<RiskFinding> findings =
-                    riskFindingRepository
-                            .findByAnalysisRunId(
-                                    run.getId()
-                            );
-
-            history.add(
-                    new RiskAnalysisHistoryItem(
-                            run.getId(),
-                            run.getAnalyzedAt(),
-                            run.getRiskScore(),
-                            run.getRiskLevel(),
-                            findings
-                    )
-            );
-        }
+                buildHistory(runs, findingsByRun);
 
         return new RiskAnalysisHistoryResponse(
                 transactionId,
@@ -510,26 +530,18 @@ public class RiskAnalysisService {
                         size
                 );
 
+        List<Long> analysisRunIds =
+                runs.stream()
+                        .map(RiskAnalysisRun::getId)
+                        .toList();
+
+        Map<Long, List<RiskFinding>> findingsByRun =
+                riskFindingRepository.findByAnalysisRunIds(
+                        analysisRunIds
+                );
+
         List<RiskAnalysisHistoryItem> history =
-                new ArrayList<>();
-
-        for (RiskAnalysisRun run : runs) {
-
-            List<RiskFinding> findings =
-                    riskFindingRepository.findByAnalysisRunId(
-                            run.getId()
-                    );
-
-            history.add(
-                    new RiskAnalysisHistoryItem(
-                            run.getId(),
-                            run.getAnalyzedAt(),
-                            run.getRiskScore(),
-                            run.getRiskLevel(),
-                            findings
-                    )
-            );
-        }
+                buildHistory(runs, findingsByRun);
 
         return new RiskAnalysisHistoryPage(
                 transactionId,
