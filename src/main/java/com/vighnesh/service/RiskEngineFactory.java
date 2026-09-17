@@ -17,7 +17,7 @@ public class RiskEngineFactory {
     }
 
     public RiskEngine create() {
-        RiskEngine engine = new RiskEngine();
+        RiskEngine engine = new RiskEngine(new RiskScoreCalculator());
 
         engine.addRule(
                 new HighAmountRule(riskConfiguration.getHighAmount())
