@@ -99,4 +99,22 @@ class HighAmountRuleTest {
         );
         assertNull(rule.evaluate(normal));
     }
+
+    @Test
+    void shouldIncludeConfiguredThresholdInExplanation() {
+        Transaction transaction = new Transaction(
+                "TXN005",
+                "ABC Suppliers",
+                "EMP101",
+                new BigDecimal("60000.00"),
+                LocalDateTime.of(2026, 8, 20, 10, 0),
+                "Office Supplies"
+        );
+
+        HighAmountRule rule = new HighAmountRule(new BigDecimal("50000"), 30);
+        RiskFinding finding = rule.evaluate(transaction);
+
+        assertNotNull(finding);
+        assertEquals("Transaction amount exceeds configured threshold of INR 50000", finding.getExplanation());
+    }
 }

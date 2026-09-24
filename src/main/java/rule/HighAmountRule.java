@@ -36,13 +36,13 @@ public class HighAmountRule implements RiskRule {
     @Override
     public RiskFinding evaluate(Transaction transaction) {
 
-        if (transaction.getAmount().compareTo(threshold) > 0) {
+        if (transaction != null && transaction.getAmount() != null && transaction.getAmount().compareTo(threshold) > 0) {
 
             return new RiskFinding(
                     RiskType.HIGH_AMOUNT,
                     score,
                     RiskSeverity.MEDIUM,
-                    "Transaction amount exceeds INR 1,00,000"
+                    "Transaction amount exceeds configured threshold of INR " + threshold
             );
         }
 

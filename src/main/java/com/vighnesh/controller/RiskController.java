@@ -33,7 +33,7 @@ public class RiskController {
 
     @GetMapping("/transactions/{transactionId}")
     public ResponseEntity<RiskReport> analyzeTransaction(
-            @PathVariable String transactionId)
+            @PathVariable(name = "transactionId") String transactionId)
             throws Exception {
 
         RiskReport report =
@@ -44,7 +44,7 @@ public class RiskController {
 
     @GetMapping("/transactions/{transactionId}/findings")
     public ResponseEntity<List<RiskFinding>> getPersistedFindings(
-            @PathVariable String transactionId)
+            @PathVariable(name = "transactionId") String transactionId)
             throws Exception {
 
         return ResponseEntity.ok(
@@ -57,7 +57,7 @@ public class RiskController {
     @GetMapping("/transactions/{transactionId}/history")
     public ResponseEntity<RiskAnalysisHistoryResponse>
     getTransactionRiskHistory(
-            @PathVariable String transactionId)
+            @PathVariable(name = "transactionId") String transactionId)
             throws Exception {
 
         return ResponseEntity.ok(
@@ -69,7 +69,7 @@ public class RiskController {
 
     @PostMapping("/analyze/{transactionId}")
     public ResponseEntity<RiskReport> analyzeAndPersistTransaction(
-            @PathVariable String transactionId)
+            @PathVariable(name = "transactionId") String transactionId)
             throws Exception {
 
         RiskReport report =
@@ -82,16 +82,16 @@ public class RiskController {
 
     @GetMapping("/transactions")
     public ResponseEntity<RiskTransactionPage> getRiskTransactions(
-            @RequestParam(required = false)
+            @RequestParam(name = "riskLevel", required = false)
             RiskSeverity riskLevel,
 
-            @RequestParam(required = false)
+            @RequestParam(name = "minScore", required = false)
             Integer minScore,
 
-            @RequestParam(defaultValue = "0")
+            @RequestParam(name = "page", defaultValue = "0")
             int page,
 
-            @RequestParam(defaultValue = "10")
+            @RequestParam(name = "size", defaultValue = "10")
             int size)
             throws Exception {
 
@@ -117,8 +117,8 @@ public class RiskController {
     @GetMapping("/transactions/{transactionId}/history/{analysisRunId}")
     public ResponseEntity<RiskAnalysisHistoryItem>
     getTransactionRiskHistoryRun(
-            @PathVariable String transactionId,
-            @PathVariable long analysisRunId)
+            @PathVariable(name = "transactionId") String transactionId,
+            @PathVariable(name = "analysisRunId") long analysisRunId)
             throws Exception {
 
         return ResponseEntity.ok(
@@ -132,9 +132,9 @@ public class RiskController {
     @GetMapping("/transactions/{transactionId}/history/page")
     public ResponseEntity<RiskAnalysisHistoryPage>
     getTransactionRiskHistoryPage(
-            @PathVariable String transactionId,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size)
+            @PathVariable(name = "transactionId") String transactionId,
+            @RequestParam(name = "page", defaultValue = "0") int page,
+            @RequestParam(name = "size", defaultValue = "10") int size)
             throws Exception {
 
         return ResponseEntity.ok(
