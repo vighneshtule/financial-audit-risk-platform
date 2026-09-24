@@ -6,7 +6,8 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 @SpringBootApplication(scanBasePackages = {
         "com.vighnesh",
         "controller",
-        "repository"
+        "repository",
+        "config"
 })
 public class FinancialAuditRiskApplication {
 

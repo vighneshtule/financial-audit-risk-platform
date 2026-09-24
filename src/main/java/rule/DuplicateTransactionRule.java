@@ -1,76 +1,92 @@
 package rule;
 
+import config.RiskConfiguration;
 import model.RiskFinding;
 import model.RiskSeverity;
 import model.RiskType;
 import model.Transaction;
-import model.TransactionKey;
 
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.WeakHashMap;
 
 public class DuplicateTransactionRule implements DatasetRiskRule {
 
-        private static final long DUPLICATE_WINDOW_MINUTES = 10;
+    private static final long DEFAULT_DUPLICATE_WINDOW_MINUTES = 10;
+    private static final int DEFAULT_SCORE = 25;
 
-        @Override
-        public RiskFinding evaluate(
-                        Transaction transaction,
-                        List<Transaction> transactions) {
+    private final long duplicateWindowMinutes;
+    private final int score;
 
-                TransactionKey targetKey = new TransactionKey(
-                                transaction.getVendor(),
-                                transaction.getEmployee(),
-                                transaction.getAmount(),
-                                transaction.getCategory());
+    private final Map<List<Transaction>, DuplicateTransactionIndex> cache =
+            Collections.synchronizedMap(new WeakHashMap<>());
 
-                Map<TransactionKey, List<Transaction>> groups = new HashMap<>();
+    public DuplicateTransactionRule() {
+        this(DEFAULT_DUPLICATE_WINDOW_MINUTES, DEFAULT_SCORE);
+    }
 
-                for (Transaction current : transactions) {
+    public DuplicateTransactionRule(long duplicateWindowMinutes, int score) {
+        this.duplicateWindowMinutes = duplicateWindowMinutes;
+        this.score = score;
+    }
 
-                        TransactionKey key = new TransactionKey(
-                                        current.getVendor(),
-                                        current.getEmployee(),
-                                        current.getAmount(),
-                                        current.getCategory());
+    public DuplicateTransactionRule(RiskConfiguration.Duplicate config) {
+        this(
+                config != null ? config.getWindowMinutes() : DEFAULT_DUPLICATE_WINDOW_MINUTES,
+                config != null ? config.getScore() : DEFAULT_SCORE
+        );
+    }
 
-                        groups
-                                        .computeIfAbsent(
-                                                        key,
-                                                        k -> new ArrayList<>())
-                                        .add(current);
-                }
+    @Override
+    public RiskFinding evaluate(
+            Transaction transaction,
+            List<Transaction> transactions) {
 
-                List<Transaction> possibleDuplicates = groups.getOrDefault(
-                                targetKey,
-                                List.of());
-
-                for (Transaction other : possibleDuplicates) {
-
-                        if (transaction.getId()
-                                        .equals(other.getId())) {
-
-                                continue;
-                        }
-
-                        long minutesDifference = Math.abs(
-                                        Duration.between(
-                                                        transaction.getTransactionTime(),
-                                                        other.getTransactionTime()).toMinutes());
-
-                        if (minutesDifference <= DUPLICATE_WINDOW_MINUTES) {
-
-                                return new RiskFinding(
-                                                RiskType.DUPLICATE_TRANSACTION,
-                                                25,
-                                                RiskSeverity.MEDIUM,
-                                                "Possible duplicate transaction detected");
-                        }
-                }
-
-                return null;
+        if (transaction == null || transactions == null || transactions.isEmpty()) {
+            return null;
         }
+
+        DuplicateTransactionIndex index = cache.computeIfAbsent(
+                transactions,
+                DuplicateTransactionIndex::from
+        );
+
+        List<Transaction> possibleDuplicates =
+                index.getPossibleDuplicates(transaction);
+
+        for (Transaction other : possibleDuplicates) {
+
+            if (transaction.getId().equals(other.getId())) {
+                continue;
+            }
+
+            long minutesDifference = Math.abs(
+                    Duration.between(
+                            transaction.getTransactionTime(),
+                            other.getTransactionTime()
+                    ).toMinutes()
+            );
+
+            if (minutesDifference <= duplicateWindowMinutes) {
+                return new RiskFinding(
+                        RiskType.DUPLICATE_TRANSACTION,
+                        score,
+                        RiskSeverity.MEDIUM,
+                        "Possible duplicate transaction detected"
+                );
+            }
+        }
+
+        return null;
+    }
+
+    public long getDuplicateWindowMinutes() {
+        return duplicateWindowMinutes;
+    }
+
+    public int getScore() {
+        return score;
+    }
 }

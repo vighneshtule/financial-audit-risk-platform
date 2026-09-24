@@ -111,10 +111,10 @@ class RiskControllerIntegrationTest {
                 get("/api/risk/transactions/TXN008")
         )
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.riskScore").value(50))
-        .andExpect(jsonPath("$.riskLevel").value("MEDIUM"))
+        .andExpect(jsonPath("$.riskScore").value(60))
+        .andExpect(jsonPath("$.riskLevel").value("HIGH"))
         .andExpect(jsonPath("$.findings").isArray())
-        .andExpect(jsonPath("$.findings.length()").value(2));
+        .andExpect(jsonPath("$.findings.length()").value(3));
     }
 
     @Test
@@ -127,12 +127,12 @@ class RiskControllerIntegrationTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.totalTransactions").value(10))
         .andExpect(jsonPath("$.totalAmount").value(790000.00))
-        .andExpect(jsonPath("$.lowRiskTransactions").value(7))
-        .andExpect(jsonPath("$.mediumRiskTransactions").value(3))
-        .andExpect(jsonPath("$.highRiskTransactions").value(0))
+        .andExpect(jsonPath("$.lowRiskTransactions").value(3))
+        .andExpect(jsonPath("$.mediumRiskTransactions").value(4))
+        .andExpect(jsonPath("$.highRiskTransactions").value(3))
         .andExpect(jsonPath("$.criticalRiskTransactions").value(0))
-        .andExpect(jsonPath("$.totalFindings").value(10))
-        .andExpect(jsonPath("$.highestRiskScore").value(55));
+        .andExpect(jsonPath("$.totalFindings").value(21))
+        .andExpect(jsonPath("$.highestRiskScore").value(65));
     }
 
     @Test
@@ -168,7 +168,7 @@ class RiskControllerIntegrationTest {
                 .getContentAsString();
 
         assertTrue(response.contains("\"transactionId\":\"TXN008\""));
-        assertTrue(response.contains("\"riskScore\":50"));
+        assertTrue(response.contains("\"riskScore\":60"));
     }
 
     @Test
@@ -180,8 +180,8 @@ class RiskControllerIntegrationTest {
                         .param("riskLevel", "MEDIUM")
         )
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.content.length()").value(3))
-        .andExpect(jsonPath("$.totalElements").value(3))
+        .andExpect(jsonPath("$.content.length()").value(4))
+        .andExpect(jsonPath("$.totalElements").value(4))
         .andExpect(jsonPath("$.totalPages").value(1));
     }
 
@@ -194,8 +194,8 @@ class RiskControllerIntegrationTest {
                         .param("riskLevel", "LOW")
         )
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.content.length()").value(7))
-        .andExpect(jsonPath("$.totalElements").value(7))
+        .andExpect(jsonPath("$.content.length()").value(3))
+        .andExpect(jsonPath("$.totalElements").value(3))
         .andExpect(jsonPath("$.totalPages").value(1));
     }
 
@@ -208,8 +208,8 @@ class RiskControllerIntegrationTest {
                         .param("minScore", "50")
         )
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.content.length()").value(3))
-        .andExpect(jsonPath("$.totalElements").value(3))
+        .andExpect(jsonPath("$.content.length()").value(5))
+        .andExpect(jsonPath("$.totalElements").value(5))
         .andExpect(jsonPath("$.totalPages").value(1));
     }
 
@@ -222,8 +222,8 @@ class RiskControllerIntegrationTest {
                         .param("minScore", "55")
         )
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.content.length()").value(2))
-        .andExpect(jsonPath("$.totalElements").value(2))
+        .andExpect(jsonPath("$.content.length()").value(3))
+        .andExpect(jsonPath("$.totalElements").value(3))
         .andExpect(jsonPath("$.totalPages").value(1));
     }
 
@@ -237,8 +237,8 @@ class RiskControllerIntegrationTest {
                         .param("minScore", "50")
         )
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.content.length()").value(3))
-        .andExpect(jsonPath("$.totalElements").value(3))
+        .andExpect(jsonPath("$.content.length()").value(2))
+        .andExpect(jsonPath("$.totalElements").value(2))
         .andExpect(jsonPath("$.totalPages").value(1));
     }
 
@@ -290,7 +290,7 @@ class RiskControllerIntegrationTest {
         .andExpect(jsonPath("$.content.length()").value(2))
         .andExpect(jsonPath("$.page").value(0))
         .andExpect(jsonPath("$.size").value(2))
-        .andExpect(jsonPath("$.totalElements").value(3))
+        .andExpect(jsonPath("$.totalElements").value(4))
         .andExpect(jsonPath("$.totalPages").value(2));
         }
 
@@ -302,9 +302,9 @@ class RiskControllerIntegrationTest {
                 post("/api/risk/analyze/TXN008")
         )
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.riskScore").value(50))
-        .andExpect(jsonPath("$.riskLevel").value("MEDIUM"))
-        .andExpect(jsonPath("$.findings.length()").value(2));
+        .andExpect(jsonPath("$.riskScore").value(60))
+        .andExpect(jsonPath("$.riskLevel").value("HIGH"))
+        .andExpect(jsonPath("$.findings.length()").value(3));
     }
 
     @Test
@@ -320,7 +320,7 @@ class RiskControllerIntegrationTest {
                 post("/api/risk/analyze/TXN008")
         )
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.findings.length()").value(2));
+        .andExpect(jsonPath("$.findings.length()").value(3));
     }
 
     @Test
@@ -351,7 +351,7 @@ class RiskControllerIntegrationTest {
                         "TXN008"
                 );
 
-        assertEquals(2, firstCount);
+        assertEquals(3, firstCount);
 
         mockMvc.perform(
                 post("/api/risk/analyze/TXN008")
@@ -363,7 +363,7 @@ class RiskControllerIntegrationTest {
                         "TXN008"
                 );
 
-        assertEquals(4, secondCount);
+        assertEquals(6, secondCount);
     }
 
     @Test
@@ -379,7 +379,7 @@ class RiskControllerIntegrationTest {
                 get("/api/risk/transactions/TXN008/findings")
         )
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.length()").value(2))
+        .andExpect(jsonPath("$.length()").value(3))
         .andExpect(jsonPath("$[0].type").exists())
         .andExpect(jsonPath("$[0].score").exists())
         .andExpect(jsonPath("$[0].severity").exists())
@@ -460,10 +460,10 @@ class RiskControllerIntegrationTest {
         .andExpect(jsonPath("$.transactionId").value("TXN008"))
         .andExpect(jsonPath("$.analysisRuns").isArray())
         .andExpect(jsonPath("$.analysisRuns.length()").value(1))
-        .andExpect(jsonPath("$.analysisRuns[0].riskScore").value(50))
-        .andExpect(jsonPath("$.analysisRuns[0].riskLevel").value("MEDIUM"))
+        .andExpect(jsonPath("$.analysisRuns[0].riskScore").value(60))
+        .andExpect(jsonPath("$.analysisRuns[0].riskLevel").value("HIGH"))
         .andExpect(jsonPath("$.analysisRuns[0].findings").isArray())
-        .andExpect(jsonPath("$.analysisRuns[0].findings.length()").value(2));
+        .andExpect(jsonPath("$.analysisRuns[0].findings.length()").value(3));
     }
 
     @Test
@@ -488,9 +488,9 @@ class RiskControllerIntegrationTest {
         .andExpect(jsonPath("$.analysisRuns").isArray())
         .andExpect(jsonPath("$.analysisRuns.length()").value(2))
         .andExpect(jsonPath("$.analysisRuns[0].findings").isArray())
-        .andExpect(jsonPath("$.analysisRuns[0].findings.length()").value(2))
+        .andExpect(jsonPath("$.analysisRuns[0].findings.length()").value(3))
         .andExpect(jsonPath("$.analysisRuns[1].findings").isArray())
-        .andExpect(jsonPath("$.analysisRuns[1].findings.length()").value(2));
+        .andExpect(jsonPath("$.analysisRuns[1].findings.length()").value(3));
     }
 
     @Test
@@ -532,11 +532,11 @@ class RiskControllerIntegrationTest {
         )
         .andExpect(
                 jsonPath("$.riskScore")
-                        .value(50)
+                        .value(60)
         )
         .andExpect(
                 jsonPath("$.riskLevel")
-                        .value("MEDIUM")
+                        .value("HIGH")
         );
     }
 
@@ -566,7 +566,7 @@ class RiskControllerIntegrationTest {
         )
         .andExpect(
                 jsonPath("$.findings.length()")
-                        .value(2)
+                        .value(3)
         )
         .andExpect(
                 jsonPath(
@@ -576,6 +576,11 @@ class RiskControllerIntegrationTest {
         .andExpect(
                 jsonPath(
                         "$.findings[?(@.type == 'UNUSUAL_TRANSACTION_TIME')]"
+                ).exists()
+        )
+        .andExpect(
+                jsonPath(
+                        "$.findings[?(@.type == 'ROUND_AMOUNT')]"
                 ).exists()
         );
     }
