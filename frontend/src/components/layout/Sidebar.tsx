@@ -4,6 +4,7 @@ import {
   LayoutDashboard,
   ReceiptText,
   SearchCode,
+  LineChart,
   History,
   UploadCloud,
   ShieldCheck,
@@ -25,6 +26,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
   const navItems = [
     { label: 'Overview', to: '/', icon: LayoutDashboard },
+    { label: 'Risk Intelligence', to: '/intelligence', icon: LineChart },
     { label: 'Transactions', to: '/transactions', icon: ReceiptText },
     { label: 'Investigations', to: '/investigations', icon: SearchCode },
     { label: 'History', to: '/history', icon: History },

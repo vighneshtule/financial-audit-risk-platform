@@ -99,3 +99,62 @@ export interface AnalysisResult {
   highestRiskScore: number
 }
 
+export interface DatasetOverview {
+  totalTransactions: number
+  analyzedTransactions: number
+  totalAuditValue: number
+  totalFindings: number
+  lowRisk: number
+  mediumRisk: number
+  highRisk: number
+  criticalRisk: number
+  highestRiskScore: number
+}
+
+export interface SeverityCount {
+  severity: RiskSeverity | string
+  count: number
+}
+
+export interface VendorRisk {
+  vendor: string
+  transactionCount: number
+  flaggedTransactionCount: number
+  totalAmount: number
+  highestRiskScore: number
+  findingCount: number
+}
+
+export interface EmployeeRisk {
+  employee: string
+  transactionCount: number
+  flaggedTransactionCount: number
+  totalAmount: number
+  highestRiskScore: number
+  findingCount: number
+}
+
+export interface RiskTypeDistribution {
+  riskType: string
+  findingCount: number
+  totalScoreContribution: number
+}
+
+export interface CategoryRisk {
+  category: string
+  transactionCount: number
+  flaggedTransactionCount: number
+  totalAmount: number
+  findingCount: number
+}
+
+export interface RiskIntelligenceSummary {
+  overview: DatasetOverview
+  severityDistribution: SeverityCount[]
+  vendors: VendorRisk[]
+  employees: EmployeeRisk[]
+  riskTypes: RiskTypeDistribution[]
+  categories: CategoryRisk[]
+}
+
+

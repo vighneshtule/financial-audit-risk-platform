@@ -9,9 +9,15 @@ import type {
   RiskAnalysisHistoryPage,
   RiskSeverity,
   AnalysisResult,
+  RiskIntelligenceSummary,
 } from '../types'
 
 export const riskApi = {
+  getIntelligenceSummary: async (): Promise<RiskIntelligenceSummary> => {
+    const response = await apiClient.get<RiskIntelligenceSummary>('/risk/intelligence/summary')
+    return response.data
+  },
+
   analyzeAll: async (): Promise<AnalysisResult> => {
     const response = await apiClient.post<AnalysisResult>('/risk/analyze-all')
     return response.data
