@@ -2,6 +2,7 @@ package com.vighnesh.service;
 
 import com.vighnesh.exception.AnalysisRunNotFoundException;
 import com.vighnesh.exception.TransactionNotFoundException;
+import model.AnalysisResult;
 import model.RiskAnalysisHistoryItem;
 import model.RiskAnalysisHistoryPage;
 import model.RiskAnalysisHistoryResponse;
@@ -318,6 +319,83 @@ public class RiskAnalysisService {
         );
 
         return report;
+    }
+
+    /**
+     * Analyzes every transaction in the database using one shared
+     * RiskEngine instance, persists an analysis run and all
+     * findings for each transaction, and returns an aggregated
+     * summary of the batch.
+     *
+     * The entire operation is wrapped in a single Spring-managed
+     * transaction: if any persistence call fails, all inserts
+     * (runs + findings) are rolled back atomically.
+     */
+    @Transactional
+    public AnalysisResult analyzeAndPersistAllTransactions()
+            throws Exception {
+
+        List<Transaction> transactions =
+                transactionRepository.findAll();
+
+        if (transactions.isEmpty()) {
+            return new AnalysisResult(0, 0, 0, 0, 0, 0);
+        }
+
+        // Create ONE engine for the entire dataset so that
+        // dataset-aware rules (velocity, concentration, etc.)
+        // have consistent context across all evaluations.
+        RiskEngine engine = riskEngineFactory.create();
+
+        int low = 0;
+        int medium = 0;
+        int high = 0;
+        int critical = 0;
+        int highestRiskScore = 0;
+
+        for (Transaction transaction : transactions) {
+
+            RiskReport report =
+                    engine.analyze(transaction, transactions);
+
+            // Persist the analysis run for this transaction
+            long analysisRunId =
+                    riskAnalysisRunRepository.save(
+                            transaction.getId(),
+                            report.getRiskScore(),
+                            report.getRiskLevel()
+                    );
+
+            // Persist all findings belonging to this run
+            for (RiskFinding finding : report.getFindings()) {
+                riskFindingRepository.save(
+                        analysisRunId,
+                        transaction.getId(),
+                        finding
+                );
+            }
+
+            // Accumulate severity counts
+            switch (report.getRiskLevel()) {
+                case LOW      -> low++;
+                case MEDIUM   -> medium++;
+                case HIGH     -> high++;
+                case CRITICAL -> critical++;
+            }
+
+            if (report.getRiskScore() > highestRiskScore) {
+                highestRiskScore = report.getRiskScore();
+            }
+        }
+
+        return new AnalysisResult(
+                transactions.size(),
+                low,
+                medium,
+                high,
+                critical,
+                highestRiskScore
+        );
     }
 
     public List<RiskFinding> getPersistedFindings(

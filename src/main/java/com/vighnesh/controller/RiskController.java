@@ -1,5 +1,6 @@
 package com.vighnesh.controller;
 
+import model.AnalysisResult;
 import model.RiskAnalysisHistoryResponse;
 import model.RiskAnalysisHistoryItem;
 import model.RiskAnalysisHistoryPage;
@@ -144,5 +145,15 @@ public class RiskController {
                         size
                 )
         );
+    }
+
+    @PostMapping("/analyze-all")
+    public ResponseEntity<AnalysisResult> analyzeAll()
+            throws Exception {
+
+        AnalysisResult result =
+                riskAnalysisService.analyzeAndPersistAllTransactions();
+
+        return ResponseEntity.ok(result);
     }
 }

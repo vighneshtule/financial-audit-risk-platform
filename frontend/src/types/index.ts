@@ -89,3 +89,13 @@ export interface TransactionFilters {
   size?: number
   search?: string
 }
+
+export interface AnalysisResult {
+  transactionsAnalyzed: number
+  lowRisk: number
+  mediumRisk: number
+  highRisk: number
+  criticalRisk: number
+  highestRiskScore: number
+}
+
