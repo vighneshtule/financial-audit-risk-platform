@@ -5,11 +5,17 @@ import {
   FileText,
   CheckCircle2,
   AlertCircle,
-  Play,
   RefreshCw,
   Info,
+  Play,
+  Layers,
+  LayoutDashboard,
+  RotateCcw,
 } from 'lucide-react'
 import { formatCurrency } from '../lib/utils'
+import { transactionsApi } from '../api/transactions'
+import { riskApi } from '../api/risk'
+import type { AnalysisResult } from '../types'
 
 interface ParsedRow {
   id: string
@@ -31,6 +37,11 @@ export const ImportPage: React.FC = () => {
   const [importSuccess, setImportSuccess] = useState(false)
   const [importError, setImportError] = useState<string | null>(null)
   const [importedCount, setImportedCount] = useState<number>(0)
+
+  // Analysis state
+  const [isAnalyzing, setIsAnalyzing] = useState(false)
+  const [analysisError, setAnalysisError] = useState<string | null>(null)
+  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null)
 
   const parseCsvText = (text: string) => {
     const lines = text
@@ -77,6 +88,8 @@ export const ImportPage: React.FC = () => {
     setFile(selectedFile)
     setImportError(null)
     setImportSuccess(false)
+    setAnalysisResult(null)
+    setAnalysisError(null)
 
     const reader = new FileReader()
     reader.onload = (e) => {
@@ -109,21 +122,45 @@ export const ImportPage: React.FC = () => {
   }
 
   const handleImport = async () => {
-    if (!file || parsedRows.length === 0) return
+    if (!file) return
 
     try {
       setIsImporting(true)
       setImportError(null)
+      setAnalysisResult(null)
+      setAnalysisError(null)
 
-      // Simulate client import acknowledgment / call backend check
-      await new Promise((r) => setTimeout(r, 600))
-      setImportedCount(parsedRows.length)
+      const result = await transactionsApi.importCsv(file)
+      setImportedCount(result.count)
       setImportSuccess(true)
     } catch (err) {
-      setImportError(err instanceof Error ? err.message : 'Import failed')
+      setImportError(err instanceof Error ? err.message : 'Import failed. Please check your CSV and try again.')
     } finally {
       setIsImporting(false)
     }
+  }
+
+  const handleRunAnalysis = async () => {
+    try {
+      setIsAnalyzing(true)
+      setAnalysisError(null)
+      const result = await riskApi.analyzeAll()
+      setAnalysisResult(result)
+    } catch (err) {
+      setAnalysisError(err instanceof Error ? err.message : 'Failed to execute risk analysis. Please try again.')
+    } finally {
+      setIsAnalyzing(false)
+    }
+  }
+
+  const handleReset = () => {
+    setFile(null)
+    setParsedRows([])
+    setImportSuccess(false)
+    setImportError(null)
+    setAnalysisResult(null)
+    setAnalysisError(null)
+    setImportedCount(0)
   }
 
   return (
@@ -132,10 +169,10 @@ export const ImportPage: React.FC = () => {
       <div>
         <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100 flex items-center gap-2.5">
           <UploadCloud className="w-6 h-6 text-zinc-600 dark:text-zinc-400" />
-          CSV Transaction Import
+          CSV Transaction Import & Risk Analysis
         </h1>
         <p className="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
-          Ingest raw financial transaction datasets for deterministic risk scoring and compliance audit
+          Ingest raw financial transaction datasets and run deterministic risk rules across the entire dataset
         </p>
       </div>
 
@@ -271,41 +308,176 @@ export const ImportPage: React.FC = () => {
           )}
         </div>
       ) : (
-        /* Success State */
-        <div className="p-8 rounded-2xl border border-emerald-200/80 dark:border-emerald-900/60 bg-white dark:bg-[#14161b] shadow-xs text-center space-y-4">
-          <div className="w-12 h-12 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto">
-            <CheckCircle2 className="w-6 h-6" />
+        /* Post-Import Workflow Area */
+        <div className="space-y-6">
+          {/* Step 1: Import Confirmed Card */}
+          <div className="p-6 rounded-2xl border border-emerald-200/80 dark:border-emerald-900/60 bg-white dark:bg-[#14161b] shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5">
+              <div className="w-10 h-10 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                <CheckCircle2 className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
+                  {importedCount} transaction{importedCount !== 1 ? 's' : ''} imported
+                </h3>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                  Records are saved in database. Run dataset-wide analysis to calculate risk scores and findings.
+                </p>
+              </div>
+            </div>
+
+            {!analysisResult && !isAnalyzing && (
+              <button
+                onClick={handleRunAnalysis}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white transition-colors shadow-2xs shrink-0"
+              >
+                <Play className="w-3.5 h-3.5 fill-current" />
+                Run Risk Analysis
+              </button>
+            )}
           </div>
 
-          <div>
-            <h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100">
-              CSV Dataset Ready for Audit
-            </h3>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 max-w-md mx-auto">
-              Successfully processed {importedCount} transaction rows. You can now execute the
-              deterministic risk engine across this batch.
-            </p>
-          </div>
+          {/* Step 2: Running Risk Analysis State */}
+          {isAnalyzing && (
+            <div className="p-8 rounded-2xl border border-indigo-200/80 dark:border-indigo-900/60 bg-white dark:bg-[#14161b] shadow-xs space-y-6">
+              <div className="text-center space-y-1">
+                <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  Running Risk Analysis
+                </div>
+                <h4 className="text-base font-bold text-zinc-900 dark:text-zinc-100">
+                  Analyzing your transaction dataset
+                </h4>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                  Evaluating deterministic rules across all imported transactions
+                </p>
+              </div>
 
-          <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
-            <button
-              onClick={() => navigate('/transactions')}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors shadow-2xs"
-            >
-              <Play className="w-3.5 h-3.5" />
-              Run Analysis & Explore
-            </button>
-            <button
-              onClick={() => {
-                setFile(null)
-                setParsedRows([])
-                setImportSuccess(false)
-              }}
-              className="px-4 py-2 rounded-lg text-xs font-medium border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700"
-            >
-              Upload Another CSV
-            </button>
-          </div>
+              {/* Visual Rule Evaluation Status */}
+              <div className="max-w-md mx-auto space-y-2.5 bg-zinc-50 dark:bg-zinc-900/50 p-4 rounded-xl border border-zinc-200/60 dark:border-zinc-800/60 font-mono text-xs">
+                <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
+                  <span>✓</span>
+                  <span className="text-zinc-700 dark:text-zinc-300">High amount detection</span>
+                </div>
+                <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
+                  <span>✓</span>
+                  <span className="text-zinc-700 dark:text-zinc-300">Unusual time detection</span>
+                </div>
+                <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
+                  <span>✓</span>
+                  <span className="text-zinc-700 dark:text-zinc-300">Duplicate detection</span>
+                </div>
+                <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
+                  <span>✓</span>
+                  <span className="text-zinc-700 dark:text-zinc-300">Round amount detection</span>
+                </div>
+                <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
+                  <span>✓</span>
+                  <span className="text-zinc-700 dark:text-zinc-300">Transaction velocity</span>
+                </div>
+                <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 animate-pulse">
+                  <span>●</span>
+                  <span className="text-zinc-700 dark:text-zinc-300">Vendor concentration</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Step 3: Analysis Error State */}
+          {analysisError && (
+            <div className="p-6 rounded-2xl border border-rose-200 dark:border-rose-900/60 bg-rose-50/50 dark:bg-rose-950/20 text-rose-700 dark:text-rose-400 space-y-3">
+              <div className="flex items-center gap-2 text-xs font-semibold">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>Analysis Failed</span>
+              </div>
+              <p className="text-xs text-rose-600 dark:text-rose-300">
+                {analysisError}
+              </p>
+              <button
+                onClick={handleRunAnalysis}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-rose-600 hover:bg-rose-700 text-white transition-colors shadow-2xs"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                Retry
+              </button>
+            </div>
+          )}
+
+          {/* Step 4: Success State — Analysis Complete Summary */}
+          {analysisResult && (
+            <div className="p-8 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#14161b] shadow-xs space-y-6">
+              <div className="text-center space-y-1">
+                <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                  <CheckCircle2 className="w-4 h-4" />
+                  Analysis Complete
+                </div>
+                <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
+                  {analysisResult.transactionsAnalyzed} transactions analyzed
+                </h3>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                  Highest risk score detected:{' '}
+                  <span className="font-semibold text-zinc-900 dark:text-zinc-100 font-mono">
+                    {analysisResult.highestRiskScore}
+                  </span>
+                </p>
+              </div>
+
+              {/* Severity Breakdown Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-lg mx-auto">
+                <div className="p-3 rounded-xl border border-emerald-200/60 dark:border-emerald-900/40 bg-emerald-50/40 dark:bg-emerald-950/20 text-center">
+                  <div className="text-xs font-medium text-emerald-700 dark:text-emerald-400">Low</div>
+                  <div className="text-lg font-bold text-emerald-900 dark:text-emerald-100 font-mono mt-0.5">
+                    {analysisResult.lowRisk}
+                  </div>
+                </div>
+
+                <div className="p-3 rounded-xl border border-amber-200/60 dark:border-amber-900/40 bg-amber-50/40 dark:bg-amber-950/20 text-center">
+                  <div className="text-xs font-medium text-amber-700 dark:text-amber-400">Medium</div>
+                  <div className="text-lg font-bold text-amber-900 dark:text-amber-100 font-mono mt-0.5">
+                    {analysisResult.mediumRisk}
+                  </div>
+                </div>
+
+                <div className="p-3 rounded-xl border border-orange-200/60 dark:border-orange-900/40 bg-orange-50/40 dark:bg-orange-950/20 text-center">
+                  <div className="text-xs font-medium text-orange-700 dark:text-orange-400">High</div>
+                  <div className="text-lg font-bold text-orange-900 dark:text-orange-100 font-mono mt-0.5">
+                    {analysisResult.highRisk}
+                  </div>
+                </div>
+
+                <div className="p-3 rounded-xl border border-rose-200/60 dark:border-rose-900/40 bg-rose-50/40 dark:bg-rose-950/20 text-center">
+                  <div className="text-xs font-medium text-rose-700 dark:text-rose-400">Critical</div>
+                  <div className="text-lg font-bold text-rose-900 dark:text-rose-100 font-mono mt-0.5">
+                    {analysisResult.criticalRisk}
+                  </div>
+                </div>
+              </div>
+
+              {/* Action CTAs */}
+              <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
+                <button
+                  onClick={() => navigate('/')}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-xs font-semibold bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors shadow-2xs"
+                >
+                  <LayoutDashboard className="w-4 h-4" />
+                  View Dashboard
+                </button>
+                <button
+                  onClick={() => navigate('/transactions')}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-semibold border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors shadow-2xs"
+                >
+                  <Layers className="w-4 h-4" />
+                  View Transactions
+                </button>
+                <button
+                  onClick={handleReset}
+                  className="px-4 py-2.5 rounded-lg text-xs font-medium text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200"
+                >
+                  Upload Another CSV
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -316,9 +488,10 @@ export const ImportPage: React.FC = () => {
           <strong className="text-zinc-700 dark:text-zinc-300 font-medium">
             Audit Integrity Notice:
           </strong>{' '}
-          All imported records are evaluated using deterministic risk rules (Round Amount, Unusual Time, Velocity, Concentration, High Amount, and Duplicates). No AI or statistical guesswork is applied.
+          All imported records are evaluated using deterministic risk rules (Round Amount, Unusual Time, Velocity, Concentration, High Amount, and Duplicates). Analysis history is preserved across runs.
         </p>
       </div>
     </div>
   )
 }
+

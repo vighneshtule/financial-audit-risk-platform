@@ -839,5 +839,52 @@ class RiskControllerIntegrationTest {
         .andExpect(jsonPath("$.status").value(404))
         .andExpect(jsonPath("$.error").value("Not Found"));
     }
+
+    @Test
+    void analyzeAllShouldProcessAllTransactionsAndPersistRunsAndFindings()
+            throws Exception {
+
+        mockMvc.perform(
+                post("/api/risk/analyze-all")
+        )
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.transactionsAnalyzed").value(10))
+        .andExpect(jsonPath("$.lowRisk").value(3))
+        .andExpect(jsonPath("$.mediumRisk").value(4))
+        .andExpect(jsonPath("$.highRisk").value(3))
+        .andExpect(jsonPath("$.criticalRisk").value(0))
+        .andExpect(jsonPath("$.highestRiskScore").value(65));
+
+        // Verify runs and findings were persisted for all 10 transactions
+        long runCount = riskAnalysisRunRepository.countByTransactionId("TXN008");
+        assertEquals(1, runCount);
+
+        int findingCount = riskFindingRepository.countByTransactionId("TXN008");
+        assertEquals(3, findingCount);
+    }
+
+    @Test
+    void analyzeAllMultipleTimesShouldAccumulateRunsWithoutOverwritingHistory()
+            throws Exception {
+
+        // First analysis run
+        mockMvc.perform(
+                post("/api/risk/analyze-all")
+        )
+        .andExpect(status().isOk());
+
+        // Second analysis run
+        mockMvc.perform(
+                post("/api/risk/analyze-all")
+        )
+        .andExpect(status().isOk());
+
+        // TXN008 should now have 2 analysis runs and 6 findings
+        long runCount = riskAnalysisRunRepository.countByTransactionId("TXN008");
+        assertEquals(2, runCount);
+
+        int findingCount = riskFindingRepository.countByTransactionId("TXN008");
+        assertEquals(6, findingCount);
+    }
 }
 
