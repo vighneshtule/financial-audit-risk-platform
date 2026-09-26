@@ -10,10 +10,17 @@ import type {
   RiskSeverity,
   AnalysisResult,
   RiskIntelligenceSummary,
+  TransactionContext,
 } from '../types'
 
 export const riskApi = {
+  getTransactionContext: async (transactionId: string): Promise<TransactionContext> => {
+    const response = await apiClient.get<TransactionContext>(`/risk/transactions/${transactionId}/context`)
+    return response.data
+  },
+
   getIntelligenceSummary: async (): Promise<RiskIntelligenceSummary> => {
+
     const response = await apiClient.get<RiskIntelligenceSummary>('/risk/intelligence/summary')
     return response.data
   },

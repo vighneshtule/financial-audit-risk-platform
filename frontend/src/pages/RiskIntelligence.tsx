@@ -10,9 +10,7 @@ import {
   CheckCircle2,
   Circle,
   RefreshCw,
-  ArrowUpRight,
 } from 'lucide-react'
-import { Link } from 'react-router-dom'
 import { riskApi } from '../api/risk'
 import type { RiskIntelligenceSummary } from '../types'
 import { MetricCardSkeleton } from '../components/common/Skeleton'
@@ -152,7 +150,7 @@ export const RiskIntelligencePage: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">Risk Intelligence</h1>
-          <p className="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">Dataset-level risk analytics — vendors, employees, rules, categories.</p>
+          <p className="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">Dataset-level risk analytics  vendors, employees, rules, categories.</p>
         </div>
         <button
           id="ri-refresh-btn"
@@ -281,7 +279,7 @@ export const RiskIntelligencePage: React.FC = () => {
                           <span className="text-xs font-medium text-zinc-800 dark:text-zinc-200 truncate max-w-[55%]">{cat.category}</span>
                           <div className="flex items-center gap-2 text-[10px] text-zinc-500 dark:text-zinc-400 tabular-nums">
                             <span>{cat.flaggedTransactionCount}/{cat.transactionCount}</span>
-                            <span>·</span>
+                            <span></span>
                             <span>{formatCurrency(cat.totalAmount)}</span>
                           </div>
                         </div>

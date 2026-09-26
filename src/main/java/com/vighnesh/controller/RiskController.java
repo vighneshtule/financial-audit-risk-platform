@@ -20,17 +20,34 @@ import java.util.List;
 
 import model.RiskTransactionPage;
 
+import com.vighnesh.service.RiskEvidenceService;
+import model.TransactionContext;
+
 @RestController
 @RequestMapping("/api/risk")
 public class RiskController {
 
     private final RiskAnalysisService riskAnalysisService;
+    private final RiskEvidenceService riskEvidenceService;
 
     public RiskController(
-            RiskAnalysisService riskAnalysisService) {
+            RiskAnalysisService riskAnalysisService,
+            RiskEvidenceService riskEvidenceService) {
 
         this.riskAnalysisService = riskAnalysisService;
+        this.riskEvidenceService = riskEvidenceService;
     }
+
+    @GetMapping("/transactions/{transactionId}/context")
+    public ResponseEntity<TransactionContext> getTransactionContext(
+            @PathVariable(name = "transactionId") String transactionId)
+            throws Exception {
+
+        return ResponseEntity.ok(
+                riskEvidenceService.getContext(transactionId)
+        );
+    }
+
 
     @GetMapping("/transactions/{transactionId}")
     public ResponseEntity<RiskReport> analyzeTransaction(

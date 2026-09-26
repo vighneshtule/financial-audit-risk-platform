@@ -157,4 +157,36 @@ export interface RiskIntelligenceSummary {
   categories: CategoryRisk[]
 }
 
+export interface RelatedTransaction {
+  transactionId: string
+  amount: number
+  transactionTime: string | null
+  riskScore: number | null
+  riskLevel: RiskSeverity | null
+}
+
+export interface RelatedGroup {
+  name: string
+  relatedTransactionCount: number
+  totalAmount: number
+  highestRiskScore: number
+  flaggedTransactionCount: number
+  transactions: RelatedTransaction[]
+}
+
+export interface EvidenceSummary {
+  relatedTransactionCount: number
+  relatedFlaggedTransactionCount: number
+  relatedAmount: number
+}
+
+export interface TransactionContext {
+  transactionId: string
+  vendor: RelatedGroup
+  employee: RelatedGroup
+  category: RelatedGroup
+  evidenceSummary: EvidenceSummary
+}
+
+
 

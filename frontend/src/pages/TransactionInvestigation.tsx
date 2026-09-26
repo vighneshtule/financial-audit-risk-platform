@@ -15,6 +15,9 @@ import {
   Layers,
   Banknote,
   RotateCcw,
+  GitBranch,
+  ExternalLink,
+  AlertTriangle,
 } from 'lucide-react'
 import { riskApi } from '../api/risk'
 import { transactionsApi } from '../api/transactions'
@@ -23,6 +26,8 @@ import type {
   Transaction,
   RiskAnalysisHistoryItem,
   RiskFinding,
+  TransactionContext,
+  RelatedGroup,
 } from '../types'
 import { RiskBadge } from '../components/common/RiskBadge'
 import { RiskScoreGauge } from '../components/common/RiskScoreGauge'
@@ -35,16 +40,33 @@ export const TransactionInvestigation: React.FC = () => {
   const navigate = useNavigate()
 
   const [transaction, setTransaction] = useState<Transaction | null>(null)
-  const [allTransactions, setAllTransactions] = useState<Transaction[]>([])
   const [report, setReport] = useState<RiskReport | null>(null)
   const [historyRuns, setHistoryRuns] = useState<RiskAnalysisHistoryItem[]>([])
   const [selectedRunId, setSelectedRunId] = useState<number | null>(null)
+
+  const [evidenceContext, setEvidenceContext] = useState<TransactionContext | null>(null)
+  const [evidenceLoading, setEvidenceLoading] = useState<boolean>(true)
+  const [evidenceError, setEvidenceError] = useState<string | null>(null)
 
   const [loading, setLoading] = useState(true)
   const [analyzing, setAnalyzing] = useState(false)
   const [copied, setCopied] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [historyLoading, setHistoryLoading] = useState(false)
+
+
+  const loadEvidence = async (txnId: string) => {
+    try {
+      setEvidenceLoading(true)
+      setEvidenceError(null)
+      const ctx = await riskApi.getTransactionContext(txnId)
+      setEvidenceContext(ctx)
+    } catch (err) {
+      setEvidenceError(err instanceof Error ? err.message : `Failed to load context for ${txnId}`)
+    } finally {
+      setEvidenceLoading(false)
+    }
+  }
 
   const loadInvestigation = async () => {
     if (!id) return
@@ -53,7 +75,6 @@ export const TransactionInvestigation: React.FC = () => {
       setError(null)
       setSelectedRunId(null)
 
-      // Fetch transaction risk report, history, and all transactions for accurate metadata/context
       const [reportData, historyData, transactionsList] = await Promise.all([
         riskApi.analyzeTransaction(id),
         riskApi.getTransactionHistory(id).catch(() => ({ transactionId: id, analysisRuns: [] })),
@@ -62,13 +83,11 @@ export const TransactionInvestigation: React.FC = () => {
 
       setReport(reportData)
       setHistoryRuns(historyData.analysisRuns || [])
-      setAllTransactions(transactionsList)
 
       const matchingTx = transactionsList.find((t) => t.id === id)
       if (matchingTx) {
         setTransaction(matchingTx)
       } else {
-        // If not found in the transaction registry, mark error
         setError(`Transaction ${id} not found in repository`)
       }
     } catch (err) {
@@ -80,6 +99,9 @@ export const TransactionInvestigation: React.FC = () => {
 
   useEffect(() => {
     loadInvestigation()
+    if (id) {
+      loadEvidence(id)
+    }
   }, [id])
 
   const handleCopyId = () => {
@@ -96,16 +118,18 @@ export const TransactionInvestigation: React.FC = () => {
       const persistedReport = await riskApi.analyzeAndPersist(id)
       setReport(persistedReport)
 
-      // Refresh history runs
       const historyData = await riskApi.getTransactionHistory(id)
       setHistoryRuns(historyData.analysisRuns || [])
       setSelectedRunId(null)
+
+      loadEvidence(id)
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Analysis execution failed')
     } finally {
       setAnalyzing(false)
     }
   }
+
 
   const handleSelectHistoricalRun = async (runId: number) => {
     if (!id) return
@@ -143,21 +167,7 @@ export const TransactionInvestigation: React.FC = () => {
     return findings.reduce((acc, f) => acc + (f.score || 0), 0)
   }, [findings])
 
-  // Related transactions context from existing transaction list
-  const relatedVendorTxCount = useMemo(() => {
-    if (!transaction || !allTransactions.length) return 0
-    return allTransactions.filter((t) => t.vendor === transaction.vendor && t.id !== transaction.id).length
-  }, [transaction, allTransactions])
 
-  const relatedEmployeeTxCount = useMemo(() => {
-    if (!transaction || !allTransactions.length) return 0
-    return allTransactions.filter((t) => t.employee === transaction.employee && t.id !== transaction.id).length
-  }, [transaction, allTransactions])
-
-  const relatedCategoryTxCount = useMemo(() => {
-    if (!transaction || !allTransactions.length) return 0
-    return allTransactions.filter((t) => t.category === transaction.category && t.id !== transaction.id).length
-  }, [transaction, allTransactions])
 
   // Get most recent analysis timestamp
   const latestAnalyzedAt = useMemo(() => {
@@ -621,45 +631,7 @@ export const TransactionInvestigation: React.FC = () => {
             </div>
           </div>
 
-          {/* 7. RELATED TRANSACTION CONTEXT (Extension Point supported by existing dataset) */}
-          <div className="rounded-xl border border-zinc-200/90 dark:border-zinc-800/90 bg-white dark:bg-[#14161b] p-5 shadow-2xs space-y-3">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-700 dark:text-zinc-300 border-b border-zinc-100 dark:border-zinc-800/80 pb-2.5 flex items-center justify-between">
-              <span>Related Transaction Context</span>
-              <span className="text-[10px] font-mono text-zinc-400">DATASET</span>
-            </h3>
 
-            <div className="grid grid-cols-3 gap-2 text-center">
-              <div className="p-2.5 rounded-lg bg-zinc-50 dark:bg-zinc-900/60 border border-zinc-100 dark:border-zinc-800/60">
-                <span className="text-[9px] uppercase font-semibold text-zinc-400 block truncate">
-                  Same Vendor
-                </span>
-                <span className="font-mono text-sm font-bold text-zinc-900 dark:text-zinc-100">
-                  {relatedVendorTxCount}
-                </span>
-              </div>
-
-              <div className="p-2.5 rounded-lg bg-zinc-50 dark:bg-zinc-900/60 border border-zinc-100 dark:border-zinc-800/60">
-                <span className="text-[9px] uppercase font-semibold text-zinc-400 block truncate">
-                  Same Employee
-                </span>
-                <span className="font-mono text-sm font-bold text-zinc-900 dark:text-zinc-100">
-                  {relatedEmployeeTxCount}
-                </span>
-              </div>
-
-              <div className="p-2.5 rounded-lg bg-zinc-50 dark:bg-zinc-900/60 border border-zinc-100 dark:border-zinc-800/60">
-                <span className="text-[9px] uppercase font-semibold text-zinc-400 block truncate">
-                  Same Category
-                </span>
-                <span className="font-mono text-sm font-bold text-zinc-900 dark:text-zinc-100">
-                  {relatedCategoryTxCount}
-                </span>
-              </div>
-            </div>
-            <p className="text-[10px] text-zinc-400 dark:text-zinc-500 leading-normal">
-              Context calculated from the currently loaded transaction repository without external API calls.
-            </p>
-          </div>
 
           {/* 8. ANALYSIS HISTORY */}
           <div className="rounded-xl border border-zinc-200/90 dark:border-zinc-800/90 bg-white dark:bg-[#14161b] p-5 shadow-2xs space-y-3.5">
@@ -760,6 +732,249 @@ export const TransactionInvestigation: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* EVIDENCE & RELATIONSHIPS SECTION */}
+      <div className="rounded-xl border border-zinc-200/90 dark:border-zinc-800/90 bg-white dark:bg-[#14161b] p-6 shadow-2xs space-y-6">
+        {/* Section Header */}
+        <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800/80 pb-4">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300">
+              <GitBranch className="w-4 h-4" />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-800 dark:text-zinc-200">
+                Evidence & Relationships
+              </h2>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                Surrounding transaction network and cross-entity risk intelligence
+              </p>
+            </div>
+          </div>
+          <span className="px-2.5 py-1 rounded-md text-[10px] font-mono font-semibold bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700">
+            PERSISTED AUDIT CONTEXT
+          </span>
+        </div>
+
+        {evidenceLoading ? (
+          <div className="space-y-4 py-4">
+            <Skeleton className="h-16 w-full rounded-xl" />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Skeleton className="h-48 w-full rounded-xl" />
+              <Skeleton className="h-48 w-full rounded-xl" />
+              <Skeleton className="h-48 w-full rounded-xl" />
+            </div>
+          </div>
+        ) : evidenceError ? (
+          <div className="p-4 rounded-xl border border-red-200 dark:border-red-900/40 bg-red-50/50 dark:bg-red-950/20 text-xs flex items-center justify-between">
+            <div className="flex items-center gap-2 text-red-600 dark:text-red-400 font-medium">
+              <AlertTriangle className="w-4 h-4" />
+              <span>Failed to load evidence context: {evidenceError}</span>
+            </div>
+            <button
+              onClick={() => id && loadEvidence(id)}
+              className="px-3 py-1 text-xs font-semibold rounded-lg bg-red-100 dark:bg-red-900/60 text-red-700 dark:text-red-300 hover:bg-red-200"
+            >
+              Retry
+            </button>
+          </div>
+        ) : evidenceContext ? (
+          <div className="space-y-6">
+            {/* 1. Evidence Summary KPIs */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="p-4 rounded-xl bg-zinc-50/80 dark:bg-zinc-900/60 border border-zinc-200/80 dark:border-zinc-800/80 flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider block">
+                    Related Transactions
+                  </span>
+                  <span className="font-mono text-xl font-bold text-zinc-900 dark:text-zinc-100">
+                    {evidenceContext.evidenceSummary.relatedTransactionCount}
+                  </span>
+                </div>
+                <Layers className="w-5 h-5 text-zinc-400" />
+              </div>
+
+              <div
+                className={`p-4 rounded-xl border flex items-center justify-between ${
+                  evidenceContext.evidenceSummary.relatedFlaggedTransactionCount > 0
+                    ? 'bg-amber-500/10 dark:bg-amber-500/5 border-amber-500/30 text-amber-700 dark:text-amber-400'
+                    : 'bg-zinc-50/80 dark:bg-zinc-900/60 border-zinc-200/80 dark:border-zinc-800/80 text-zinc-900 dark:text-zinc-100'
+                }`}
+              >
+                <div>
+                  <span className="text-[10px] uppercase font-bold tracking-wider opacity-70 block">
+                    Flagged Related
+                  </span>
+                  <span className="font-mono text-xl font-bold">
+                    {evidenceContext.evidenceSummary.relatedFlaggedTransactionCount}
+                  </span>
+                </div>
+                <ShieldAlert className="w-5 h-5 opacity-70" />
+              </div>
+
+              <div className="p-4 rounded-xl bg-zinc-50/80 dark:bg-zinc-900/60 border border-zinc-200/80 dark:border-zinc-800/80 flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider block">
+                    Related Amount
+                  </span>
+                  <span className="font-mono text-xl font-bold text-zinc-900 dark:text-zinc-100">
+                    {formatCurrency(evidenceContext.evidenceSummary.relatedAmount)}
+                  </span>
+                </div>
+                <Banknote className="w-5 h-5 text-zinc-400" />
+              </div>
+            </div>
+
+            {/* 2, 3, 4. Relationship Cards (Vendor, Employee, Category) */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+              <RelationshipGroupCard
+                title="Vendor Relationship"
+                icon={<Building2 className="w-4 h-4 text-blue-500" />}
+                group={evidenceContext.vendor}
+                onNavigate={(txnId) => navigate(`/transactions/${txnId}`)}
+              />
+
+              <RelationshipGroupCard
+                title="Employee Relationship"
+                icon={<User className="w-4 h-4 text-indigo-500" />}
+                group={evidenceContext.employee}
+                onNavigate={(txnId) => navigate(`/transactions/${txnId}`)}
+              />
+
+              <RelationshipGroupCard
+                title="Category Relationship"
+                icon={<Layers className="w-4 h-4 text-purple-500" />}
+                group={evidenceContext.category}
+                onNavigate={(txnId) => navigate(`/transactions/${txnId}`)}
+              />
+            </div>
+          </div>
+        ) : null}
+      </div>
     </div>
   )
 }
+
+interface RelationshipGroupCardProps {
+  title: string
+  icon: React.ReactNode
+  group: RelatedGroup
+  onNavigate: (txnId: string) => void
+}
+
+const RelationshipGroupCard: React.FC<RelationshipGroupCardProps> = ({
+  title,
+  icon,
+  group,
+  onNavigate,
+}) => {
+  return (
+    <div className="rounded-xl border border-zinc-200/80 dark:border-zinc-800/80 bg-zinc-50/50 dark:bg-zinc-900/30 p-4 space-y-3.5 flex flex-col justify-between">
+      <div>
+        {/* Card Header */}
+        <div className="flex items-center justify-between border-b border-zinc-200/60 dark:border-zinc-800/60 pb-2.5">
+          <div className="flex items-center gap-2">
+            {icon}
+            <h3 className="text-xs font-bold text-zinc-800 dark:text-zinc-200 truncate max-w-[180px]" title={group.name}>
+              {title}
+            </h3>
+          </div>
+          <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 truncate max-w-[100px]" title={group.name}>
+            {group.name || '—'}
+          </span>
+        </div>
+
+        {/* Stats Strip */}
+        <div className="grid grid-cols-2 gap-2 my-3 text-[11px]">
+          <div className="p-2 rounded-lg bg-white dark:bg-[#14161b] border border-zinc-200/60 dark:border-zinc-800/60">
+            <span className="text-[9px] uppercase font-bold text-zinc-400 block">Transactions</span>
+            <span className="font-mono font-bold text-zinc-800 dark:text-zinc-200">
+              {group.relatedTransactionCount}
+            </span>
+          </div>
+          <div className="p-2 rounded-lg bg-white dark:bg-[#14161b] border border-zinc-200/60 dark:border-zinc-800/60">
+            <span className="text-[9px] uppercase font-bold text-zinc-400 block">Total Amount</span>
+            <span className="font-mono font-bold text-zinc-800 dark:text-zinc-200 truncate block">
+              {formatCurrency(group.totalAmount)}
+            </span>
+          </div>
+          <div className="p-2 rounded-lg bg-white dark:bg-[#14161b] border border-zinc-200/60 dark:border-zinc-800/60">
+            <span className="text-[9px] uppercase font-bold text-zinc-400 block">Flagged</span>
+            <span
+              className={`font-mono font-bold ${
+                group.flaggedTransactionCount > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-zinc-800 dark:text-zinc-200'
+              }`}
+            >
+              {group.flaggedTransactionCount}
+            </span>
+          </div>
+          <div className="p-2 rounded-lg bg-white dark:bg-[#14161b] border border-zinc-200/60 dark:border-zinc-800/60">
+            <span className="text-[9px] uppercase font-bold text-zinc-400 block">Peak Risk</span>
+            <span
+              className={`font-mono font-bold ${
+                group.highestRiskScore >= 75
+                  ? 'text-red-600 dark:text-red-400'
+                  : group.highestRiskScore >= 30
+                  ? 'text-amber-600 dark:text-amber-400'
+                  : 'text-zinc-800 dark:text-zinc-200'
+              }`}
+            >
+              {group.highestRiskScore > 0 ? group.highestRiskScore : '—'}
+            </span>
+          </div>
+        </div>
+
+        {/* Transactions Table / List */}
+        {group.transactions && group.transactions.length > 0 ? (
+          <div className="overflow-x-auto max-h-48 overflow-y-auto rounded-lg border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#14161b]">
+            <table className="w-full text-left text-[11px]">
+              <thead className="sticky top-0 bg-zinc-100 dark:bg-zinc-800/90 text-zinc-500 uppercase text-[9px] font-bold">
+                <tr>
+                  <th className="px-2.5 py-1.5">ID</th>
+                  <th className="px-2.5 py-1.5 text-right">Amount</th>
+                  <th className="px-2.5 py-1.5 text-center">Score</th>
+                  <th className="px-2.5 py-1.5 text-right">Severity</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/60 font-mono">
+                {group.transactions.map((tx) => (
+                  <tr
+                    key={tx.transactionId}
+                    onClick={() => onNavigate(tx.transactionId)}
+                    className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50 cursor-pointer transition-colors"
+                  >
+                    <td className="px-2.5 py-2 font-semibold text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                      <span>{tx.transactionId}</span>
+                      <ExternalLink className="w-2.5 h-2.5 opacity-60" />
+                    </td>
+                    <td className="px-2.5 py-2 text-right font-medium text-zinc-700 dark:text-zinc-300 whitespace-nowrap">
+                      {formatCurrency(tx.amount)}
+                    </td>
+                    <td className="px-2.5 py-2 text-center">
+                      {tx.riskScore !== null ? (
+                        <span className="font-bold text-zinc-900 dark:text-zinc-100">{tx.riskScore}</span>
+                      ) : (
+                        <span className="text-[10px] text-zinc-400 font-sans italic">Not analyzed</span>
+                      )}
+                    </td>
+                    <td className="px-2.5 py-2 text-right">
+                      {tx.riskLevel ? (
+                        <RiskBadge severity={tx.riskLevel} showDot={false} className="text-[8px] px-1 py-0.2" />
+                      ) : (
+                        <span className="text-[10px] text-zinc-400 font-sans italic">—</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="py-6 text-center text-xs text-zinc-400 dark:text-zinc-500 bg-white dark:bg-[#14161b] rounded-lg border border-dashed border-zinc-200 dark:border-zinc-800">
+            No related transactions found.
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
