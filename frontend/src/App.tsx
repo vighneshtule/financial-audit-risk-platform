@@ -8,6 +8,7 @@ import { TransactionInvestigation } from './pages/TransactionInvestigation'
 import { HistoryPage } from './pages/History'
 import { ImportPage } from './pages/Import'
 import { InvestigationsPage } from './pages/Investigations'
+import { RiskIntelligencePage } from './pages/RiskIntelligence'
 
 export const App: React.FC = () => {
   return (
@@ -18,6 +19,7 @@ export const App: React.FC = () => {
             <Route index element={<Dashboard />} />
             <Route path="transactions" element={<Transactions />} />
             <Route path="transactions/:id" element={<TransactionInvestigation />} />
+            <Route path="intelligence" element={<RiskIntelligencePage />} />
             <Route path="investigations" element={<InvestigationsPage />} />
             <Route path="history" element={<HistoryPage />} />
             <Route path="import" element={<ImportPage />} />
