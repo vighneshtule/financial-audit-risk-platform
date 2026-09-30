@@ -1,7 +1,9 @@
 import axios from 'axios'
 
+const baseURL = import.meta.env.VITE_API_BASE_URL || '/api'
+
 export const apiClient = axios.create({
-  baseURL: '/api',
+  baseURL,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -10,7 +12,7 @@ export const apiClient = axios.create({
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Standardize error messaging
+    // Standardize error messaging across production API responses
     const message =
       error.response?.data?.message ||
       error.response?.data?.error ||

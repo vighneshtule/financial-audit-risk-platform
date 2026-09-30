@@ -1,3 +1,6 @@
+-- AUREX Financial Audit Risk Platform - Database Schema
+-- Idempotent Schema Initialization Script
+
 CREATE TABLE IF NOT EXISTS transactions (
     transaction_id VARCHAR(50) PRIMARY KEY,
     vendor VARCHAR(255) NOT NULL,
@@ -6,6 +9,20 @@ CREATE TABLE IF NOT EXISTS transactions (
     transaction_time TIMESTAMP NOT NULL,
     category VARCHAR(100) NOT NULL
 );
+
+-- Transaction Indexes for High-Performance Queries & Relationship Intelligence
+CREATE INDEX IF NOT EXISTS idx_transactions_vendor
+    ON transactions(vendor);
+
+CREATE INDEX IF NOT EXISTS idx_transactions_employee
+    ON transactions(employee);
+
+CREATE INDEX IF NOT EXISTS idx_transactions_category
+    ON transactions(category);
+
+CREATE INDEX IF NOT EXISTS idx_transactions_time
+    ON transactions(transaction_time);
+
 
 CREATE TABLE IF NOT EXISTS risk_analysis_runs (
     id BIGSERIAL PRIMARY KEY,
@@ -20,11 +37,16 @@ CREATE TABLE IF NOT EXISTS risk_analysis_runs (
         ON DELETE CASCADE
 );
 
+-- Risk Analysis Run Indexes
 CREATE INDEX IF NOT EXISTS idx_analysis_runs_transaction
     ON risk_analysis_runs(transaction_id);
 
 CREATE INDEX IF NOT EXISTS idx_analysis_runs_analyzed_at
     ON risk_analysis_runs(analyzed_at);
+
+-- Composite Index for Efficient DISTINCT ON Latest Run Queries
+CREATE INDEX IF NOT EXISTS idx_analysis_runs_txn_analyzed
+    ON risk_analysis_runs(transaction_id, analyzed_at DESC, id DESC);
 
 
 CREATE TABLE IF NOT EXISTS risk_findings (
@@ -48,6 +70,7 @@ CREATE TABLE IF NOT EXISTS risk_findings (
         ON DELETE CASCADE
 );
 
+-- Risk Findings Indexes
 CREATE INDEX IF NOT EXISTS idx_risk_findings_analysis_run
     ON risk_findings(analysis_run_id);
 
