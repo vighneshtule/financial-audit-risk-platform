@@ -11,6 +11,9 @@ import type {
   AnalysisResult,
   RiskIntelligenceSummary,
   TransactionContext,
+  AuditDecision,
+  AuditEvent,
+  CreateAuditDecisionRequest,
 } from '../types'
 
 export const riskApi = {
@@ -18,6 +21,43 @@ export const riskApi = {
     const response = await apiClient.get<TransactionContext>(`/risk/transactions/${transactionId}/context`)
     return response.data
   },
+
+  createAuditDecision: async (
+    transactionId: string,
+    payload: CreateAuditDecisionRequest
+  ): Promise<AuditDecision> => {
+    const response = await apiClient.post<AuditDecision>(
+      `/risk/transactions/${transactionId}/audit/decisions`,
+      payload
+    )
+    return response.data
+  },
+
+  getLatestAuditDecision: async (transactionId: string): Promise<AuditDecision | null> => {
+    try {
+      const response = await apiClient.get<AuditDecision | null>(
+        `/risk/transactions/${transactionId}/audit/decision`
+      )
+      return response.data || null
+    } catch {
+      return null
+    }
+  },
+
+  getAuditDecisions: async (transactionId: string): Promise<AuditDecision[]> => {
+    const response = await apiClient.get<AuditDecision[]>(
+      `/risk/transactions/${transactionId}/audit/decisions`
+    )
+    return response.data || []
+  },
+
+  getAuditEvents: async (transactionId: string): Promise<AuditEvent[]> => {
+    const response = await apiClient.get<AuditEvent[]>(
+      `/risk/transactions/${transactionId}/audit/events`
+    )
+    return response.data || []
+  },
+
 
   getIntelligenceSummary: async (): Promise<RiskIntelligenceSummary> => {
 

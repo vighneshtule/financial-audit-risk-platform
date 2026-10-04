@@ -49,15 +49,22 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler({
             MissingServletRequestParameterException.class,
-            MethodArgumentTypeMismatchException.class
+            MethodArgumentTypeMismatchException.class,
+            org.springframework.web.bind.MethodArgumentNotValidException.class
     })
     public ResponseEntity<Map<String, Object>> handleValidationExceptions(
             Exception exception,
             HttpServletRequest request) {
 
         log.warn("Request validation failed: {}", exception.getMessage());
-        return buildErrorResponse(HttpStatus.BAD_REQUEST, "Bad Request", "Invalid request parameter or missing parameter", request.getRequestURI());
+        String message = "Invalid request parameter or missing parameter";
+        if (exception instanceof org.springframework.web.bind.MethodArgumentNotValidException manv &&
+                manv.getBindingResult().getFieldError() != null) {
+            message = manv.getBindingResult().getFieldError().getDefaultMessage();
+        }
+        return buildErrorResponse(HttpStatus.BAD_REQUEST, "Bad Request", message, request.getRequestURI());
     }
+
 
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<Map<String, Object>> handleMaxUploadSizeExceeded(

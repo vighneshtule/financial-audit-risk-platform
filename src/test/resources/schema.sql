@@ -59,3 +59,62 @@ CREATE INDEX IF NOT EXISTS idx_risk_findings_type
 
 CREATE INDEX IF NOT EXISTS idx_risk_findings_severity
     ON risk_findings(severity);
+
+CREATE TABLE IF NOT EXISTS audit_decisions (
+    id BIGSERIAL PRIMARY KEY,
+    transaction_id VARCHAR(50) NOT NULL,
+    analysis_run_id BIGINT NOT NULL,
+    decision VARCHAR(40) NOT NULL,
+    comment TEXT,
+    decided_by VARCHAR(100),
+    decided_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_audit_decisions_transaction
+        FOREIGN KEY (transaction_id)
+        REFERENCES transactions(transaction_id)
+        ON DELETE RESTRICT,
+
+    CONSTRAINT fk_audit_decisions_analysis_run
+        FOREIGN KEY (analysis_run_id)
+        REFERENCES risk_analysis_runs(id)
+        ON DELETE RESTRICT
+);
+
+CREATE INDEX IF NOT EXISTS idx_audit_decisions_transaction
+    ON audit_decisions(transaction_id);
+
+CREATE INDEX IF NOT EXISTS idx_audit_decisions_analysis_run
+    ON audit_decisions(analysis_run_id);
+
+CREATE INDEX IF NOT EXISTS idx_audit_decisions_decided_at
+    ON audit_decisions(decided_at DESC, id DESC);
+
+
+CREATE TABLE IF NOT EXISTS audit_events (
+    id BIGSERIAL PRIMARY KEY,
+    transaction_id VARCHAR(50) NOT NULL,
+    decision_id BIGINT,
+    event_type VARCHAR(50) NOT NULL,
+    event_details TEXT,
+    actor VARCHAR(100),
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_audit_events_transaction
+        FOREIGN KEY (transaction_id)
+        REFERENCES transactions(transaction_id)
+        ON DELETE RESTRICT,
+
+    CONSTRAINT fk_audit_events_decision
+        FOREIGN KEY (decision_id)
+        REFERENCES audit_decisions(id)
+        ON DELETE RESTRICT
+);
+
+CREATE INDEX IF NOT EXISTS idx_audit_events_transaction
+    ON audit_events(transaction_id);
+
+CREATE INDEX IF NOT EXISTS idx_audit_events_decision
+    ON audit_events(decision_id);
+
+CREATE INDEX IF NOT EXISTS idx_audit_events_created_at
+    ON audit_events(created_at DESC, id DESC);
