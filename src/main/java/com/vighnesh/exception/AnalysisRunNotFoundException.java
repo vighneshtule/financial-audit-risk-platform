@@ -5,4 +5,9 @@ public class AnalysisRunNotFoundException extends RuntimeException {
     public AnalysisRunNotFoundException(long analysisRunId) {
         super("Analysis run not found: " + analysisRunId);
     }
+
+    public AnalysisRunNotFoundException(String message) {
+        super(message);
+    }
 }
+

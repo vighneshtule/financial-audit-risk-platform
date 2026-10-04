@@ -18,6 +18,10 @@ import {
   GitBranch,
   ExternalLink,
   AlertTriangle,
+  Scale,
+  Send,
+  Clock,
+  FileText,
 } from 'lucide-react'
 import { riskApi } from '../api/risk'
 import { transactionsApi } from '../api/transactions'
@@ -28,12 +32,16 @@ import type {
   RiskFinding,
   TransactionContext,
   RelatedGroup,
+  AuditDecision,
+  AuditEvent,
+  AuditDecisionType,
 } from '../types'
 import { RiskBadge } from '../components/common/RiskBadge'
 import { RiskScoreGauge } from '../components/common/RiskScoreGauge'
 import { FindingCard } from '../components/risk/FindingCard'
 import { Skeleton } from '../components/common/Skeleton'
 import { formatCurrency, formatDate } from '../lib/utils'
+
 
 export const TransactionInvestigation: React.FC = () => {
   const { id } = useParams<{ id: string }>()
@@ -54,6 +62,39 @@ export const TransactionInvestigation: React.FC = () => {
   const [error, setError] = useState<string | null>(null)
   const [historyLoading, setHistoryLoading] = useState(false)
 
+  // Audit Decision state
+  const [latestDecision, setLatestDecision] = useState<AuditDecision | null>(null)
+  const [auditEvents, setAuditEvents] = useState<AuditEvent[]>([])
+  const [auditLoading, setAuditLoading] = useState(false)
+  const [auditSubmitting, setAuditSubmitting] = useState(false)
+  const [auditError, setAuditError] = useState<string | null>(null)
+  const [auditForm, setAuditForm] = useState<{
+    decision: AuditDecisionType | ''
+    comment: string
+    decidedBy: string
+  }>({
+    decision: '',
+    comment: '',
+    decidedBy: '',
+  })
+
+
+  const loadAuditData = async (txnId: string) => {
+    try {
+      setAuditLoading(true)
+      setAuditError(null)
+      const [decision, events] = await Promise.all([
+        riskApi.getLatestAuditDecision(txnId),
+        riskApi.getAuditEvents(txnId).catch(() => [] as AuditEvent[]),
+      ])
+      setLatestDecision(decision)
+      setAuditEvents(events)
+    } catch {
+      // Audit panel is non-blocking; silent fail
+    } finally {
+      setAuditLoading(false)
+    }
+  }
 
   const loadEvidence = async (txnId: string) => {
     try {
@@ -101,6 +142,7 @@ export const TransactionInvestigation: React.FC = () => {
     loadInvestigation()
     if (id) {
       loadEvidence(id)
+      loadAuditData(id)
     }
   }, [id])
 
@@ -123,6 +165,7 @@ export const TransactionInvestigation: React.FC = () => {
       setSelectedRunId(null)
 
       loadEvidence(id)
+      loadAuditData(id)
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Analysis execution failed')
     } finally {
@@ -850,6 +893,179 @@ export const TransactionInvestigation: React.FC = () => {
           </div>
         ) : null}
       </div>
+
+      {/* AUDIT DECISION + TRAIL SECTION */}
+      <div className="rounded-xl border border-zinc-200/90 dark:border-zinc-800/90 bg-white dark:bg-[#14161b] p-6 shadow-2xs space-y-6">
+        {/* Section Header */}
+        <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800/80 pb-4">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
+              <Scale className="w-4 h-4" />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-800 dark:text-zinc-200">
+                Audit Decision &amp; Trail
+              </h2>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                Record your audit verdict and review the immutable event trail
+              </p>
+            </div>
+          </div>
+          {latestDecision && (
+            <AuditDecisionBadge decision={latestDecision.decision} />
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* LEFT: Submit New Decision */}
+          <div className="space-y-4">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 flex items-center gap-2">
+              <Send className="w-3.5 h-3.5" />
+              Record Decision
+            </h3>
+
+            {auditError && (
+              <div className="p-3 rounded-lg border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/20 text-xs text-red-600 dark:text-red-400 flex items-center gap-2">
+                <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                {auditError}
+              </div>
+            )}
+
+            <div className="space-y-3">
+              {/* Decision type selector */}
+              <div>
+                <label className="block text-[10px] uppercase font-bold text-zinc-400 mb-1.5 tracking-wider">
+                  Decision *
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  {(['CONFIRMED_RISK', 'FALSE_POSITIVE', 'REQUIRES_INVESTIGATION', 'ESCALATED'] as AuditDecisionType[]).map((dtype) => (
+                    <button
+                      key={dtype}
+                      type="button"
+                      onClick={() => setAuditForm(f => ({ ...f, decision: dtype }))}
+                      className={`px-3 py-2 rounded-lg text-[11px] font-semibold border transition-all text-left ${
+                        auditForm.decision === dtype
+                          ? decisionSelectStyle(dtype)
+                          : 'border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/40 text-zinc-600 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-700'
+                      }`}
+                    >
+                      {decisionLabel(dtype)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Decided By */}
+              <div>
+                <label className="block text-[10px] uppercase font-bold text-zinc-400 mb-1.5 tracking-wider">
+                  Auditor Name *
+                </label>
+                <input
+                  type="text"
+                  value={auditForm.decidedBy}
+                  onChange={e => setAuditForm(f => ({ ...f, decidedBy: e.target.value }))}
+                  placeholder="e.g. Senior Auditor"
+                  maxLength={100}
+                  className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/60 text-xs text-zinc-800 dark:text-zinc-200 placeholder-zinc-400 focus:outline-none focus:ring-1 focus:ring-indigo-400 dark:focus:ring-indigo-600 transition-colors"
+                />
+              </div>
+
+              {/* Comment */}
+              <div>
+                <label className="block text-[10px] uppercase font-bold text-zinc-400 mb-1.5 tracking-wider">
+                  Comment <span className="text-zinc-300 dark:text-zinc-600 font-normal lowercase normal-case">(optional)</span>
+                </label>
+                <textarea
+                  value={auditForm.comment}
+                  onChange={e => setAuditForm(f => ({ ...f, comment: e.target.value }))}
+                  placeholder="Describe your audit rationale..."
+                  rows={3}
+                  maxLength={2000}
+                  className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/60 text-xs text-zinc-800 dark:text-zinc-200 placeholder-zinc-400 focus:outline-none focus:ring-1 focus:ring-indigo-400 dark:focus:ring-indigo-600 transition-colors resize-none"
+                />
+              </div>
+
+              <button
+                type="button"
+                disabled={auditSubmitting || !auditForm.decision || !auditForm.decidedBy.trim()}
+                onClick={async () => {
+                  if (!id || !auditForm.decision || !auditForm.decidedBy.trim()) return
+                  try {
+                    setAuditSubmitting(true)
+                    setAuditError(null)
+                    const latestRunId = historyRuns.length > 0 ? historyRuns[0].analysisRunId : undefined
+                    await riskApi.createAuditDecision(id, {
+                      decision: auditForm.decision as AuditDecisionType,
+                      comment: auditForm.comment.trim() || undefined,
+                      decidedBy: auditForm.decidedBy.trim(),
+                      analysisRunId: latestRunId,
+                    })
+                    setAuditForm({ decision: '', comment: '', decidedBy: '' })
+                    await loadAuditData(id)
+                  } catch (err) {
+                    setAuditError(err instanceof Error ? err.message : 'Failed to record audit decision')
+                  } finally {
+                    setAuditSubmitting(false)
+                  }
+                }}
+                className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white transition-colors shadow-sm"
+              >
+                <Send className="w-3.5 h-3.5" />
+                {auditSubmitting ? 'Submitting...' : 'Submit Audit Decision'}
+              </button>
+            </div>
+          </div>
+
+          {/* RIGHT: Audit Event Trail */}
+          <div className="space-y-4">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 flex items-center gap-2">
+              <Clock className="w-3.5 h-3.5" />
+              Audit Trail
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-zinc-100 dark:bg-zinc-800 text-zinc-500">
+                {auditEvents.length}
+              </span>
+            </h3>
+
+            {auditLoading ? (
+              <div className="space-y-2">
+                <Skeleton className="h-14 w-full rounded-lg" />
+                <Skeleton className="h-14 w-full rounded-lg" />
+              </div>
+            ) : auditEvents.length === 0 ? (
+              <div className="py-8 text-center rounded-xl border border-dashed border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/20">
+                <FileText className="w-7 h-7 text-zinc-300 dark:text-zinc-600 mx-auto mb-2" />
+                <p className="text-xs text-zinc-400 dark:text-zinc-500">No audit events recorded yet.</p>
+                <p className="text-[11px] text-zinc-300 dark:text-zinc-600 mt-0.5">Submit a decision to begin the immutable trail.</p>
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+                {auditEvents.map((event) => (
+                  <div
+                    key={event.id}
+                    className="p-3 rounded-lg border border-zinc-200/80 dark:border-zinc-800/80 bg-zinc-50/60 dark:bg-zinc-900/30 text-xs space-y-1"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono font-semibold text-indigo-600 dark:text-indigo-400 text-[10px] uppercase tracking-wider">
+                        {event.eventType.replace(/_/g, ' ')}
+                      </span>
+                      <span className="text-[10px] font-mono text-zinc-400">
+                        {formatDate(event.createdAt)}
+                      </span>
+                    </div>
+                    <p className="text-zinc-600 dark:text-zinc-400 text-[11px] leading-relaxed">
+                      {event.eventDetails}
+                    </p>
+                    <div className="flex items-center gap-1 text-[10px] text-zinc-400">
+                      <User className="w-3 h-3" />
+                      <span>{event.actor}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
@@ -860,6 +1076,46 @@ interface RelationshipGroupCardProps {
   group: RelatedGroup
   onNavigate: (txnId: string) => void
 }
+
+// ── Audit Decision helpers ─────────────────────────────────────────────────
+
+function decisionLabel(dtype: AuditDecisionType): string {
+  switch (dtype) {
+    case 'CONFIRMED_RISK':        return '⚠ Confirmed Risk'
+    case 'FALSE_POSITIVE':        return '✓ False Positive'
+    case 'REQUIRES_INVESTIGATION': return '🔍 Investigate'
+    case 'ESCALATED':             return '↑ Escalated'
+  }
+}
+
+function decisionSelectStyle(dtype: AuditDecisionType): string {
+  switch (dtype) {
+    case 'CONFIRMED_RISK':
+      return 'border-red-400 dark:border-red-600 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300'
+    case 'FALSE_POSITIVE':
+      return 'border-emerald-400 dark:border-emerald-600 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300'
+    case 'REQUIRES_INVESTIGATION':
+      return 'border-amber-400 dark:border-amber-600 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300'
+    case 'ESCALATED':
+      return 'border-purple-400 dark:border-purple-600 bg-purple-50 dark:bg-purple-950/30 text-purple-700 dark:text-purple-300'
+  }
+}
+
+const AuditDecisionBadge: React.FC<{ decision: AuditDecisionType }> = ({ decision }) => {
+  const styles: Record<AuditDecisionType, string> = {
+    CONFIRMED_RISK:          'bg-red-500/10 text-red-700 dark:text-red-300 border-red-400/30',
+    FALSE_POSITIVE:          'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-400/30',
+    REQUIRES_INVESTIGATION:  'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-400/30',
+    ESCALATED:               'bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-400/30',
+  }
+  return (
+    <span className={`px-3 py-1 rounded-full text-[11px] font-bold border ${styles[decision]} uppercase tracking-wide`}>
+      {decisionLabel(decision)}
+    </span>
+  )
+}
+
+// ── RelationshipGroupCard ──────────────────────────────────────────────────
 
 const RelationshipGroupCard: React.FC<RelationshipGroupCardProps> = ({
   title,

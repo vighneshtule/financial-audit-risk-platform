@@ -188,5 +188,35 @@ export interface TransactionContext {
   evidenceSummary: EvidenceSummary
 }
 
+export type AuditDecisionType =
+  | 'CONFIRMED_RISK'
+  | 'FALSE_POSITIVE'
+  | 'REQUIRES_INVESTIGATION'
+  | 'ESCALATED'
 
+export interface AuditDecision {
+  id: number
+  transactionId: string
+  analysisRunId: number
+  decision: AuditDecisionType
+  comment: string | null
+  decidedBy: string
+  decidedAt: string
+}
 
+export interface AuditEvent {
+  id: number
+  transactionId: string
+  decisionId: number | null
+  eventType: string
+  eventDetails: string
+  actor: string
+  createdAt: string
+}
+
+export interface CreateAuditDecisionRequest {
+  analysisRunId?: number
+  decision: AuditDecisionType
+  comment?: string
+  decidedBy: string
+}
