@@ -1,3 +1,22 @@
+CREATE TABLE IF NOT EXISTS users (
+    id BIGSERIAL PRIMARY KEY,
+    username VARCHAR(100) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    role VARCHAR(20) NOT NULL,
+    enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT chk_user_role CHECK (role IN ('ADMIN', 'AUDITOR', 'VIEWER'))
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username
+    ON users(username);
+
+CREATE INDEX IF NOT EXISTS idx_users_role
+    ON users(role);
+
+
 CREATE TABLE IF NOT EXISTS transactions (
     transaction_id VARCHAR(50) PRIMARY KEY,
     vendor VARCHAR(255) NOT NULL,

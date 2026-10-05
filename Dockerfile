@@ -27,4 +27,8 @@ USER aurexuser
 EXPOSE 8080
 ENV PORT=8080
 
-ENTRYPOINT ["java", "-jar", "-Dspring.profiles.active=prod", "app.jar"]
+# Profile is supplied at runtime via SPRING_PROFILES_ACTIVE environment variable.
+# docker-compose.yml injects: SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
+# For production deployments set SPRING_PROFILES_ACTIVE=prod in your environment.
+# Do NOT hardcode a profile here — it would override the container env var.
+ENTRYPOINT ["java", "-jar", "app.jar"]
