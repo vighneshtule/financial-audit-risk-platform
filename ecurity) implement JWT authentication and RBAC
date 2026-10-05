@@ -1,0 +1,743 @@
+warning: in the working copy of '.env.example', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'Dockerfile', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'Readme.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docker-compose.yml', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/main/java/com/vighnesh/config/OpenApiConfig.java', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/main/java/com/vighnesh/exception/GlobalExceptionHandler.java', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/main/resources/application.properties', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/main/resources/schema.sql', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/test/java/com/vighnesh/controller/AuditControllerTest.java', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/test/java/com/vighnesh/controller/RiskControllerIntegrationTest.java', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/test/java/com/vighnesh/controller/RiskEvidenceIntegrationTest.java', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/test/java/com/vighnesh/controller/TransactionImportControllerTest.java', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/test/java/com/vighnesh/service/AuditServiceTest.java', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/test/java/service/TransactionImportServiceTest.java', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/test/resources/schema.sql', LF will be replaced by CRLF the next time Git touches it
+[1mdiff --git a/.env.example b/.env.example[m
+[1mindex 8911682..4dbed05 100644[m
+[1m--- a/.env.example[m
+[1m+++ b/.env.example[m
+[36m@@ -12,11 +12,36 @@[m [mDB_PASSWORD=your_secure_password_here[m
+ # Security & CORS (comma-separated origins)[m
+ CORS_ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000[m
+ [m
+[31m-# Active Spring Profile (e.g., prod or default)[m
+[31m-SPRING_PROFILES_ACTIVE=default[m
+[32m+[m[32m# Active Spring Profile[m
+[32m+[m[32m# - 'dev'  → local/Docker development (DevAdminBootstrap can seed the first admin).[m
+[32m+[m[32m#            This is the new default when running docker compose locally.[m
+[32m+[m[32m# - 'prod' → production deployment (admin seeding blocked, JWT_SECRET strictly validated).[m
+[32m+[m[32m#            Set explicitly when deploying to production:  SPRING_PROFILES_ACTIVE=prod[m
+[32m+[m[32mSPRING_PROFILES_ACTIVE=dev[m
+ [m
+[31m-# Swagger UI Control[m
+[31m-ENABLE_SWAGGER=true[m
+[32m+[m[32m# ---------------------------------------------------------------[m
+[32m+[m[32m# JWT Security Configuration[m
+[32m+[m[32m# ---------------------------------------------------------------[m
+[32m+[m[32m# REQUIRED — both for docker-compose (backend service) and bare-metal production.[m
+[32m+[m[32m# docker-compose will refuse to start if this is unset (uses the :? operator).[m
+[32m+[m[32m# Production Spring Boot startup will also fail if this is missing or uses the dev default.[m
+[32m+[m[32m# Generate a strong secret: openssl rand -base64 64[m
+[32m+[m[32mJWT_SECRET=replace_with_a_long_random_secure_secret_of_at_least_32_chars[m
+[32m+[m
+[32m+[m[32m# Token expiry in seconds (default: 86400 = 24 hours)[m
+[32m+[m[32mJWT_EXPIRATION=86400[m
+[32m+[m
+[32m+[m[32m# ---------------------------------------------------------------[m
+[32m+[m[32m# Dev Admin Bootstrap Configuration[m
+[32m+[m[32m# ---------------------------------------------------------------[m
+[32m+[m[32m# Disabled by default. Set to true ONLY in local development.[m
+[32m+[m[32m# Never enable in production (seeding is blocked in the prod profile).[m
+[32m+[m[32mAUREX_SEED_ADMIN_ENABLED=false[m
+[32m+[m
+[32m+[m[32m# REQUIRED when AUREX_SEED_ADMIN_ENABLED=true.[m
+[32m+[m[32m# There is NO default — startup will fail if seeding is enabled without this value.[m
+[32m+[m[32m# Use a strong password even in development to build good habits.[m
+[32m+[m[32mAUREX_DEV_ADMIN_PASSWORD=[m
+ [m
+ # Frontend Environment Variables (Vite)[m
+ VITE_API_BASE_URL=http://localhost:8080/api[m
+[1mdiff --git a/Dockerfile b/Dockerfile[m
+[1mindex 5b77868..3d3ac40 100644[m
+[1m--- a/Dockerfile[m
+[1m+++ b/Dockerfile[m
+[36m@@ -27,4 +27,8 @@[m [mUSER aurexuser[m
+ EXPOSE 8080[m
+ ENV PORT=8080[m
+ [m
+[31m-ENTRYPOINT ["java", "-jar", "-Dspring.profiles.active=prod", "app.jar"][m
+[32m+[m[32m# Profile is supplied at runtime via SPRING_PROFILES_ACTIVE environment variable.[m
+[32m+[m[32m# docker-compose.yml injects: SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}[m
+[32m+[m[32m# For production deployments set SPRING_PROFILES_ACTIVE=prod in your environment.[m
+[32m+[m[32m# Do NOT hardcode a profile here — it would override the container env var.[m
+[32m+[m[32mENTRYPOINT ["java", "-jar", "app.jar"][m
+[1mdiff --git a/Readme.md b/Readme.md[m
+[1mindex e589f76..40c231d 100644[m
+[1m--- a/Readme.md[m
+[1m+++ b/Readme.md[m
+[36m@@ -114,6 +114,10 @@[m [mnpm run build[m
+ | `DB_URL` | `jdbc:postgresql://localhost:5432/financial_audit` | PostgreSQL JDBC Connection String |[m
+ | `DB_USERNAME` | `postgres` | Database Username |[m
+ | `DB_PASSWORD` | `postgres` | Database Password |[m
+[32m+[m[32m| `JWT_SECRET` | *(Required in prod, min 32 chars)* | HMAC-SHA signing secret for JWT tokens |[m
+[32m+[m[32m| `JWT_EXPIRATION` | `86400` | JWT token validity window in seconds |[m
+[32m+[m[32m| `AUREX_SEED_ADMIN_ENABLED` | `false` | Enable initial admin seeding (dev only, disabled in prod) |[m
+[32m+[m[32m| `AUREX_DEV_ADMIN_PASSWORD` | *(No default)* | Required when `AUREX_SEED_ADMIN_ENABLED=true` to create local dev admin |[m
+ | `CORS_ALLOWED_ORIGINS` | `http://localhost:5173,http://localhost:3000` | Allowed CORS Frontend Origins |[m
+ | `SPRING_PROFILES_ACTIVE` | `default` | Active Profile (`default` or `prod`) |[m
+ | `VITE_API_BASE_URL` | `http://localhost:8080/api` | Base API URL for Frontend |[m
+[1mdiff --git a/docker-compose.yml b/docker-compose.yml[m
+[1mindex 412543d..ced8cf3 100644[m
+[1m--- a/docker-compose.yml[m
+[1m+++ b/docker-compose.yml[m
+[36m@@ -27,8 +27,17 @@[m [mservices:[m
+       DB_USERNAME: postgres[m
+       DB_PASSWORD: postgrespassword[m
+       CORS_ALLOWED_ORIGINS: http://localhost:5173,http://localhost:3000[m
+[31m-      SPRING_PROFILES_ACTIVE: prod[m
+[32m+[m[32m      # Profile defaults to 'dev' for local Docker runs.[m
+[32m+[m[32m      # Override with SPRING_PROFILES_ACTIVE=prod for production deployments.[m
+[32m+[m[32m      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}[m
+       ENABLE_SWAGGER: "true"[m
+[32m+[m[32m      # JWT_SECRET is required — Compose will fail immediately if not set in the host environment or .env file.[m
+[32m+[m[32m      # Generate with: openssl rand -base64 64[m
+[32m+[m[32m      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set to a secure value of at least 32 characters}[m
+[32m+[m[32m      # Admin seeding is disabled by default. Never enable in production.[m
+[32m+[m[32m      AUREX_SEED_ADMIN_ENABLED: ${AUREX_SEED_ADMIN_ENABLED:-false}[m
+[32m+[m[32m      # Only needed when AUREX_SEED_ADMIN_ENABLED=true. No default; startup fails if seeding is enabled without it.[m
+[32m+[m[32m      AUREX_DEV_ADMIN_PASSWORD: ${AUREX_DEV_ADMIN_PASSWORD:-}[m
+     depends_on:[m
+       postgres:[m
+         condition: service_healthy[m
+[1mdiff --git a/pom.xml b/pom.xml[m
+[1mindex e278b08..f9e72fc 100644[m
+[1m--- a/pom.xml[m
+[1m+++ b/pom.xml[m
+[36m@@ -48,12 +48,43 @@[m
+             <artifactId>spring-boot-starter-validation</artifactId>[m
+         </dependency>[m
+ [m
+[32m+[m[32m        <dependency>[m
+[32m+[m[32m            <groupId>org.springframework.boot</groupId>[m
+[32m+[m[32m            <artifactId>spring-boot-starter-security</artifactId>[m
+[32m+[m[32m        </dependency>[m
+[32m+[m
+[32m+[m[32m        <dependency>[m
+[32m+[m[32m            <groupId>io.jsonwebtoken</groupId>[m
+[32m+[m[32m            <artifactId>jjwt-api</artifactId>[m
+[32m+[m[32m            <version>0.12.6</version>[m
+[32m+[m[32m        </dependency>[m
+[32m+[m
+[32m+[m[32m        <dependency>[m
+[32m+[m[32m            <groupId>io.jsonwebtoken</groupId>[m
+[32m+[m[32m            <artifactId>jjwt-impl</artifactId>[m
+[32m+[m[32m            <version>0.12.6</version>[m
+[32m+[m[32m            <scope>runtime</scope>[m
+[32m+[m[32m        </dependency>[m
+[32m+[m
+[32m+[m[32m        <dependency>[m
+[32m+[m[32m            <groupId>io.jsonwebtoken</groupId>[m
+[32m+[m[32m            <artifactId>jjwt-jackson</artifactId>[m
+[32m+[m[32m            <version>0.12.6</version>[m
+[32m+[m[32m            <scope>runtime</scope>[m
+[32m+[m[32m        </dependency>[m
+[32m+[m
+         <dependency>[m
+             <groupId>org.postgresql</groupId>[m
+             <artifactId>postgresql</artifactId>[m
+             <version>42.7.8</version>[m
+         </dependency>[m
+ [m
+[32m+[m[32m        <dependency>[m
+[32m+[m[32m            <groupId>com.h2database</groupId>[m
+[32m+[m[32m            <artifactId>h2</artifactId>[m
+[32m+[m[32m            <scope>test</scope>[m
+[32m+[m[32m        </dependency>[m
+[32m+[m
+         <dependency>[m
+             <groupId>org.springdoc</groupId>[m
+             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>[m
+[36m@@ -87,6 +118,12 @@[m
+             <scope>test</scope>[m
+         </dependency>[m
+ [m
+[32m+[m[32m        <dependency>[m
+[32m+[m[32m            <groupId>org.springframework.security</groupId>[m
+[32m+[m[32m            <artifactId>spring-security-test</artifactId>[m
+[32m+[m[32m            <scope>test</scope>[m
+[32m+[m[32m        </dependency>[m
+[32m+[m
+     </dependencies>[m
+ [m
+     <build>[m
+[1mdiff --git a/src/main/java/com/vighnesh/config/OpenApiConfig.java b/src/main/java/com/vighnesh/config/OpenApiConfig.java[m
+[1mindex d89f789..e7e633f 100644[m
+[1m--- a/src/main/java/com/vighnesh/config/OpenApiConfig.java[m
+[1m+++ b/src/main/java/com/vighnesh/config/OpenApiConfig.java[m
+[36m@@ -1,9 +1,12 @@[m
+ package com.vighnesh.config;[m
+ [m
+[32m+[m[32mimport io.swagger.v3.oas.models.Components;[m
+ import io.swagger.v3.oas.models.OpenAPI;[m
+ import io.swagger.v3.oas.models.info.Contact;[m
+ import io.swagger.v3.oas.models.info.Info;[m
+ import io.swagger.v3.oas.models.info.License;[m
+[32m+[m[32mimport io.swagger.v3.oas.models.security.SecurityRequirement;[m
+[32m+[m[32mimport io.swagger.v3.oas.models.security.SecurityScheme;[m
+ import org.springframework.context.annotation.Bean;[m
+ import org.springframework.context.annotation.Configuration;[m
+ [m
+[36m@@ -12,6 +15,15 @@[m [mpublic class OpenApiConfig {[m
+ [m
+     @Bean[m
+     public OpenAPI aurexOpenAPI() {[m
+[32m+[m[32m        SecurityScheme bearerAuthScheme = new SecurityScheme()[m
+[32m+[m[32m                .type(SecurityScheme.Type.HTTP)[m
+[32m+[m[32m                .scheme("bearer")[m
+[32m+[m[32m                .bearerFormat("JWT")[m
+[32m+[m[32m                .description("Enter your JWT token obtained from POST /api/auth/login");[m
+[32m+[m
+[32m+[m[32m        SecurityRequirement securityRequirement = new SecurityRequirement()[m
+[32m+[m[32m                .addList("BearerAuth");[m
+[32m+[m
+         return new OpenAPI()[m
+                 .info(new Info()[m
+                         .title("AUREX — Financial Audit Risk Platform API")[m
+[36m@@ -22,6 +34,8 @@[m [mpublic class OpenApiConfig {[m
+                                 .email("engineering@aurex.local"))[m
+                         .license(new License()[m
+                                 .name("Proprietary")[m
+[31m-                                .url("https://aurex.local/terms")));[m
+[32m+[m[32m                                .url("https://aurex.local/terms")))[m
+[32m+[m[32m                .addSecurityItem(securityRequirement)[m
+[32m+[m[32m                .components(new Components().addSecuritySchemes("BearerAuth", bearerAuthScheme));[m
+     }[m
+ }[m
+[1mdiff --git a/src/main/java/com/vighnesh/exception/GlobalExceptionHandler.java b/src/main/java/com/vighnesh/exception/GlobalExceptionHandler.java[m
+[1mindex 8b1cd99..224b8ea 100644[m
+[1m--- a/src/main/java/com/vighnesh/exception/GlobalExceptionHandler.java[m
+[1m+++ b/src/main/java/com/vighnesh/exception/GlobalExceptionHandler.java[m
+[36m@@ -66,6 +66,24 @@[m [mpublic class GlobalExceptionHandler {[m
+     }[m
+ [m
+ [m
+[32m+[m[32m    @ExceptionHandler(org.springframework.security.authentication.BadCredentialsException.class)[m
+[32m+[m[32m    public ResponseEntity<Map<String, Object>> handleBadCredentials([m
+[32m+[m[32m            org.springframework.security.authentication.BadCredentialsException exception,[m
+[32m+[m[32m            HttpServletRequest request) {[m
+[32m+[m
+[32m+[m[32m        log.warn("Authentication failed: {}", exception.getMessage());[m
+[32m+[m[32m        return buildErrorResponse(HttpStatus.UNAUTHORIZED, "Unauthorized", "Invalid username or password", request.getRequestURI());[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)[m
+[32m+[m[32m    public ResponseEntity<Map<String, Object>> handleAccessDenied([m
+[32m+[m[32m            org.springframework.security.access.AccessDeniedException exception,[m
+[32m+[m[32m            HttpServletRequest request) {[m
+[32m+[m
+[32m+[m[32m        log.warn("Access denied: {}", exception.getMessage());[m
+[32m+[m[32m        return buildErrorResponse(HttpStatus.FORBIDDEN, "Forbidden", "Access denied: insufficient permissions", request.getRequestURI());[m
+[32m+[m[32m    }[m
+[32m+[m
+     @ExceptionHandler(MaxUploadSizeExceededException.class)[m
+     public ResponseEntity<Map<String, Object>> handleMaxUploadSizeExceeded([m
+             MaxUploadSizeExceededException exception,[m
+[1mdiff --git a/src/main/resources/application.properties b/src/main/resources/application.properties[m
+[1mindex d191b1b..b21133a 100644[m
+[1m--- a/src/main/resources/application.properties[m
+[1m+++ b/src/main/resources/application.properties[m
+[36m@@ -24,6 +24,12 @@[m [mcors.allowed-origins=${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localho[m
+ springdoc.api-docs.path=/v3/api-docs[m
+ springdoc.swagger-ui.path=/swagger-ui.html[m
+ [m
+[32m+[m[32m# Security & JWT Configuration[m
+[32m+[m[32mjwt.secret=${JWT_SECRET:dev_aurex_super_secret_key_minimum_32_bytes_long_for_hmac_sha256}[m
+[32m+[m[32mjwt.expiration=${JWT_EXPIRATION:86400}[m
+[32m+[m[32maurex.security.dev-admin.password=${AUREX_DEV_ADMIN_PASSWORD:}[m
+[32m+[m[32maurex.security.seed-admin.enabled=${AUREX_SEED_ADMIN_ENABLED:false}[m
+[32m+[m
+ # Deterministic Risk Engine Policy Thresholds[m
+ risk.rules.high-amount.threshold=100000[m
+ risk.rules.high-amount.score=30[m
+[1mdiff --git a/src/main/resources/schema.sql b/src/main/resources/schema.sql[m
+[1mindex b46b458..3f8e2aa 100644[m
+[1m--- a/src/main/resources/schema.sql[m
+[1m+++ b/src/main/resources/schema.sql[m
+[36m@@ -1,6 +1,25 @@[m
+ -- AUREX Financial Audit Risk Platform - Database Schema[m
+ -- Idempotent Schema Initialization Script[m
+ [m
+[32m+[m[32mCREATE TABLE IF NOT EXISTS users ([m
+[32m+[m[32m    id BIGSERIAL PRIMARY KEY,[m
+[32m+[m[32m    username VARCHAR(100) NOT NULL UNIQUE,[m
+[32m+[m[32m    password_hash VARCHAR(255) NOT NULL,[m
+[32m+[m[32m    role VARCHAR(20) NOT NULL,[m
+[32m+[m[32m    enabled BOOLEAN NOT NULL DEFAULT TRUE,[m
+[32m+[m[32m    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,[m
+[32m+[m[32m    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,[m
+[32m+[m
+[32m+[m[32m    CONSTRAINT chk_user_role CHECK (role IN ('ADMIN', 'AUDITOR', 'VIEWER'))[m
+[32m+[m[32m);[m
+[32m+[m
+[32m+[m[32mCREATE UNIQUE INDEX IF NOT EXISTS idx_users_username[m
+[32m+[m[32m    ON users(username);[m
+[32m+[m
+[32m+[m[32mCREATE INDEX IF NOT EXISTS idx_users_role[m
+[32m+[m[32m    ON users(role);[m
+[32m+[m
+[32m+[m
+ CREATE TABLE IF NOT EXISTS transactions ([m
+     transaction_id VARCHAR(50) PRIMARY KEY,[m
+     vendor VARCHAR(255) NOT NULL,[m
+[1mdiff --git a/src/test/java/com/vighnesh/controller/AuditControllerTest.java b/src/test/java/com/vighnesh/controller/AuditControllerTest.java[m
+[1mindex 91b6b40..80a1456 100644[m
+[1m--- a/src/test/java/com/vighnesh/controller/AuditControllerTest.java[m
+[1m+++ b/src/test/java/com/vighnesh/controller/AuditControllerTest.java[m
+[36m@@ -17,7 +17,7 @@[m [mimport org.springframework.test.context.DynamicPropertySource;[m
+ import org.springframework.test.web.servlet.MockMvc;[m
+ import org.testcontainers.containers.PostgreSQLContainer;[m
+ import org.testcontainers.junit.jupiter.Container;[m
+[31m-import org.testcontainers.junit.jupiter.Testcontainers;[m
+[32m+[m[32mimport org.springframework.security.test.context.support.WithMockUser;[m
+ import repository.RiskAnalysisRunRepository;[m
+ [m
+ import static org.hamcrest.Matchers.*;[m
+[36m@@ -27,7 +27,7 @@[m [mimport static org.springframework.test.web.servlet.result.MockMvcResultMatchers.[m
+ [m
+ @SpringBootTest(classes = FinancialAuditRiskApplication.class)[m
+ @AutoConfigureMockMvc[m
+[31m-@Testcontainers[m
+[32m+[m[32m@WithMockUser(username = "admin", roles = {"ADMIN"})[m
+ class AuditControllerTest {[m
+ [m
+     static {[m
+[36m@@ -35,18 +35,28 @@[m [mclass AuditControllerTest {[m
+         java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone("UTC"));[m
+     }[m
+ [m
+[31m-    @Container[m
+[31m-    static PostgreSQLContainer<?> postgres =[m
+[31m-            new PostgreSQLContainer<>("postgres:16")[m
+[31m-                    .withDatabaseName("financial_audit")[m
+[31m-                    .withUsername("postgres")[m
+[31m-                    .withPassword("postgres");[m
+[32m+[m[32m    static PostgreSQLContainer<?> postgres;[m
+ [m
+     @DynamicPropertySource[m
+     static void configureDatabase(DynamicPropertyRegistry registry) {[m
+[31m-        registry.add("spring.datasource.url", () -> postgres.getJdbcUrl() + "&options=-c%20TimeZone=UTC");[m
+[31m-        registry.add("spring.datasource.username", postgres::getUsername);[m
+[31m-        registry.add("spring.datasource.password", postgres::getPassword);[m
+[32m+[m[32m        try {[m
+[32m+[m[32m            if (org.testcontainers.DockerClientFactory.instance().isDockerAvailable()) {[m
+[32m+[m[32m                postgres = new PostgreSQLContainer<>("postgres:16")[m
+[32m+[m[32m                        .withDatabaseName("financial_audit")[m
+[32m+[m[32m                        .withUsername("postgres")[m
+[32m+[m[32m                        .withPassword("postgres");[m
+[32m+[m[32m                postgres.start();[m
+[32m+[m[32m                registry.add("spring.datasource.url", () -> postgres.getJdbcUrl() + "&options=-c%20TimeZone=UTC");[m
+[32m+[m[32m                registry.add("spring.datasource.username", postgres::getUsername);[m
+[32m+[m[32m                registry.add("spring.datasource.password", postgres::getPassword);[m
+[32m+[m[32m                return;[m
+[32m+[m[32m            }[m
+[32m+[m[32m        } catch (Throwable ignored) {[m
+[32m+[m[32m        }[m
+[32m+[m[32m        registry.add("spring.datasource.url", () -> "jdbc:h2:mem:auditdb;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1");[m
+[32m+[m[32m        registry.add("spring.datasource.driver-class-name", () -> "org.h2.Driver");[m
+[32m+[m[32m        registry.add("spring.datasource.username", () -> "sa");[m
+[32m+[m[32m        registry.add("spring.datasource.password", () -> "");[m
+     }[m
+ [m
+     @Autowired[m
+[1mdiff --git a/src/test/java/com/vighnesh/controller/RiskControllerIntegrationTest.java b/src/test/java/com/vighnesh/controller/RiskControllerIntegrationTest.java[m
+[1mindex e6f0f34..f895c9e 100644[m
+[1m--- a/src/test/java/com/vighnesh/controller/RiskControllerIntegrationTest.java[m
+[1m+++ b/src/test/java/com/vighnesh/controller/RiskControllerIntegrationTest.java[m
+[36m@@ -23,11 +23,13 @@[m [mimport static org.springframework.test.web.servlet.request.MockMvcRequestBuilder[m
+ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;[m
+ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;[m
+ [m
+[32m+[m[32mimport org.springframework.security.test.context.support.WithMockUser;[m
+[32m+[m
+ @SpringBootTest([m
+         classes = FinancialAuditRiskApplication.class[m
+ )[m
+ @AutoConfigureMockMvc[m
+[31m-@Testcontainers[m
+[32m+[m[32m@WithMockUser(username = "admin", roles = {"ADMIN"})[m
+ class RiskControllerIntegrationTest {[m
+ [m
+     static {[m
+[36m@@ -35,32 +37,30 @@[m [mclass RiskControllerIntegrationTest {[m
+         java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone("UTC"));[m
+     }[m
+ [m
+[31m-    @Container[m
+[31m-    static PostgreSQLContainer<?> postgres =[m
+[31m-            new PostgreSQLContainer<>("postgres:16")[m
+[31m-                    .withDatabaseName("financial_audit")[m
+[31m-                    .withUsername("postgres")[m
+[31m-                    .withPassword("postgres");[m
+[32m+[m[32m    static PostgreSQLContainer<?> postgres;[m
+ [m
+     @DynamicPropertySource[m
+     static void configureDatabase([m
+             DynamicPropertyRegistry registry) {[m
+ [m
+[31m-        registry.add([m
+[31m-                "spring.datasource.url",[m
+[31m-                () -> postgres.getJdbcUrl()[m
+[31m-                        + "&options=-c%20TimeZone=UTC"[m
+[31m-        );[m
+[31m-[m
+[31m-        registry.add([m
+[31m-                "spring.datasource.username",[m
+[31m-                postgres::getUsername[m
+[31m-        );[m
+[31m-[m
+[31m-        registry.add([m
+[31m-                "spring.datasource.password",[m
+[31m-                postgres::getPassword[m
+[31m-        );[m
+[32m+[m[32m        try {[m
+[32m+[m[32m            if (org.testcontainers.DockerClientFactory.instance().isDockerAvailable()) {[m
+[32m+[m[32m                postgres = new PostgreSQLContainer<>("postgres:16")[m
+[32m+[m[32m                        .withDatabaseName("financial_audit")[m
+[32m+[m[32m                        .withUsername("postgres")[m
+[32m+[m[32m                        .withPassword("postgres");[m
+[32m+[m[32m                postgres.start();[m
+[32m+[m[32m                registry.add("spring.datasource.url", () -> postgres.getJdbcUrl() + "&options=-c%20TimeZone=UTC");[m
+[32m+[m[32m                registry.add("spring.datasource.username", postgres::getUsername);[m
+[32m+[m[32m                registry.add("spring.datasource.password", postgres::getPassword);[m
+[32m+[m[32m                return;[m
+[32m+[m[32m            }[m
+[32m+[m[32m        } catch (Throwable ignored) {[m
+[32m+[m[32m        }[m
+[32m+[m[32m        registry.add("spring.datasource.url", () -> "jdbc:h2:mem:riskdb;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1");[m
+[32m+[m[32m        registry.add("spring.datasource.driver-class-name", () -> "org.h2.Driver");[m
+[32m+[m[32m        registry.add("spring.datasource.username", () -> "sa");[m
+[32m+[m[32m        registry.add("spring.datasource.password", () -> "");[m
+     }[m
+ [m
+     @Autowired[m
+[1mdiff --git a/src/test/java/com/vighnesh/controller/RiskEvidenceIntegrationTest.java b/src/test/java/com/vighnesh/controller/RiskEvidenceIntegrationTest.java[m
+[1mindex 9303dcd..e9fc0c4 100644[m
+[1m--- a/src/test/java/com/vighnesh/controller/RiskEvidenceIntegrationTest.java[m
+[1m+++ b/src/test/java/com/vighnesh/controller/RiskEvidenceIntegrationTest.java[m
+[36m@@ -19,9 +19,11 @@[m [mimport static org.springframework.test.web.servlet.request.MockMvcRequestBuilder[m
+ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;[m
+ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;[m
+ [m
+[32m+[m[32mimport org.springframework.security.test.context.support.WithMockUser;[m
+[32m+[m
+ @SpringBootTest(classes = FinancialAuditRiskApplication.class)[m
+ @AutoConfigureMockMvc[m
+[31m-@Testcontainers[m
+[32m+[m[32m@WithMockUser(username = "admin", roles = {"ADMIN"})[m
+ class RiskEvidenceIntegrationTest {[m
+ [m
+     static {[m
+[36m@@ -29,18 +31,28 @@[m [mclass RiskEvidenceIntegrationTest {[m
+         java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone("UTC"));[m
+     }[m
+ [m
+[31m-    @Container[m
+[31m-    static PostgreSQLContainer<?> postgres =[m
+[31m-            new PostgreSQLContainer<>("postgres:16")[m
+[31m-                    .withDatabaseName("financial_audit")[m
+[31m-                    .withUsername("postgres")[m
+[31m-                    .withPassword("postgres");[m
+[32m+[m[32m    static PostgreSQLContainer<?> postgres;[m
+ [m
+     @DynamicPropertySource[m
+     static void configureDatabase(DynamicPropertyRegistry registry) {[m
+[31m-        registry.add("spring.datasource.url", () -> postgres.getJdbcUrl() + "&options=-c%20TimeZone=UTC");[m
+[31m-        registry.add("spring.datasource.username", postgres::getUsername);[m
+[31m-        registry.add("spring.datasource.password", postgres::getPassword);[m
+[32m+[m[32m        try {[m
+[32m+[m[32m            if (org.testcontainers.DockerClientFactory.instance().isDockerAvailable()) {[m
+[32m+[m[32m                postgres = new PostgreSQLContainer<>("postgres:16")[m
+[32m+[m[32m                        .withDatabaseName("financial_audit")[m
+[32m+[m[32m                        .withUsername("postgres")[m
+[32m+[m[32m                        .withPassword("postgres");[m
+[32m+[m[32m                postgres.start();[m
+[32m+[m[32m                registry.add("spring.datasource.url", () -> postgres.getJdbcUrl() + "&options=-c%20TimeZone=UTC");[m
+[32m+[m[32m                registry.add("spring.datasource.username", postgres::getUsername);[m
+[32m+[m[32m                registry.add("spring.datasource.password", postgres::getPassword);[m
+[32m+[m[32m                return;[m
+[32m+[m[32m            }[m
+[32m+[m[32m        } catch (Throwable ignored) {[m
+[32m+[m[32m        }[m
+[32m+[m[32m        registry.add("spring.datasource.url", () -> "jdbc:h2:mem:evidencedb;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1");[m
+[32m+[m[32m        registry.add("spring.datasource.driver-class-name", () -> "org.h2.Driver");[m
+[32m+[m[32m        registry.add("spring.datasource.username", () -> "sa");[m
+[32m+[m[32m        registry.add("spring.datasource.password", () -> "");[m
+     }[m
+ [m
+     @Autowired[m
+[1mdiff --git a/src/test/java/com/vighnesh/controller/TransactionImportControllerTest.java b/src/test/java/com/vighnesh/controller/TransactionImportControllerTest.java[m
+[1mindex 1eb75a9..524469c 100644[m
+[1m--- a/src/test/java/com/vighnesh/controller/TransactionImportControllerTest.java[m
+[1m+++ b/src/test/java/com/vighnesh/controller/TransactionImportControllerTest.java[m
+[36m@@ -19,37 +19,39 @@[m [mimport org.testcontainers.junit.jupiter.Testcontainers;[m
+ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;[m
+ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;[m
+ [m
+[32m+[m[32mimport org.springframework.security.test.context.support.WithMockUser;[m
+[32m+[m
+ @SpringBootTest([m
+         classes = FinancialAuditRiskApplication.class[m
+ )[m
+ @AutoConfigureMockMvc[m
+[31m-@Testcontainers[m
+[32m+[m[32m@WithMockUser(username = "admin", roles = {"ADMIN"})[m
+ class TransactionImportControllerTest {[m
+ [m
+[31m-    @Container[m
+[31m-    static PostgreSQLContainer<?> postgres =[m
+[31m-            new PostgreSQLContainer<>("postgres:16")[m
+[31m-                    .withDatabaseName("financial_audit")[m
+[31m-                    .withUsername("postgres")[m
+[31m-                    .withPassword("postgres");[m
+[32m+[m[32m    static PostgreSQLContainer<?> postgres;[m
+ [m
+     @DynamicPropertySource[m
+     static void configureDatabase([m
+             DynamicPropertyRegistry registry) {[m
+ [m
+[31m-        registry.add([m
+[31m-                "spring.datasource.url",[m
+[31m-                () -> postgres.getJdbcUrl()[m
+[31m-                        + "&options=-c%20TimeZone=UTC"[m
+[31m-        );[m
+[31m-        registry.add([m
+[31m-                "spring.datasource.username",[m
+[31m-                postgres::getUsername[m
+[31m-        );[m
+[31m-        registry.add([m
+[31m-                "spring.datasource.password",[m
+[31m-                postgres::getPassword[m
+[31m-        );[m
+[32m+[m[32m        try {[m
+[32m+[m[32m            if (org.testcontainers.DockerClientFactory.instance().isDockerAvailable()) {[m
+[32m+[m[32m                postgres = new PostgreSQLContainer<>("postgres:16")[m
+[32m+[m[32m                        .withDatabaseName("financial_audit")[m
+[32m+[m[32m                        .withUsername("postgres")[m
+[32m+[m[32m                        .withPassword("postgres");[m
+[32m+[m[32m                postgres.start();[m
+[32m+[m[32m                registry.add("spring.datasource.url", () -> postgres.getJdbcUrl() + "&options=-c%20TimeZone=UTC");[m
+[32m+[m[32m                registry.add("spring.datasource.username", postgres::getUsername);[m
+[32m+[m[32m                registry.add("spring.datasource.password", postgres::getPassword);[m
+[32m+[m[32m                return;[m
+[32m+[m[32m            }[m
+[32m+[m[32m        } catch (Throwable ignored) {[m
+[32m+[m[32m        }[m
+[32m+[m[32m        registry.add("spring.datasource.url", () -> "jdbc:h2:mem:importdb;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1");[m
+[32m+[m[32m        registry.add("spring.datasource.driver-class-name", () -> "org.h2.Driver");[m
+[32m+[m[32m        registry.add("spring.datasource.username", () -> "sa");[m
+[32m+[m[32m        registry.add("spring.datasource.password", () -> "");[m
+     }[m
+ [m
+     @Autowired[m
+[1mdiff --git a/src/test/java/com/vighnesh/service/AuditServiceTest.java b/src/test/java/com/vighnesh/service/AuditServiceTest.java[m
+[1mindex 9367bbc..aa23247 100644[m
+[1m--- a/src/test/java/com/vighnesh/service/AuditServiceTest.java[m
+[1m+++ b/src/test/java/com/vighnesh/service/AuditServiceTest.java[m
+[36m@@ -31,7 +31,6 @@[m [mimport java.util.List;[m
+ import static org.junit.jupiter.api.Assertions.*;[m
+ [m
+ @SpringBootTest(classes = FinancialAuditRiskApplication.class)[m
+[31m-@Testcontainers[m
+ class AuditServiceTest {[m
+ [m
+     static {[m
+[36m@@ -39,18 +38,28 @@[m [mclass AuditServiceTest {[m
+         java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone("UTC"));[m
+     }[m
+ [m
+[31m-    @Container[m
+[31m-    static PostgreSQLContainer<?> postgres =[m
+[31m-            new PostgreSQLContainer<>("postgres:16")[m
+[31m-                    .withDatabaseName("financial_audit")[m
+[31m-                    .withUsername("postgres")[m
+[31m-                    .withPassword("postgres");[m
+[32m+[m[32m    static PostgreSQLContainer<?> postgres;[m
+ [m
+     @DynamicPropertySource[m
+     static void configureDatabase(DynamicPropertyRegistry registry) {[m
+[31m-        registry.add("spring.datasource.url", () -> postgres.getJdbcUrl() + "&options=-c%20TimeZone=UTC");[m
+[31m-        registry.add("spring.datasource.username", postgres::getUsername);[m
+[31m-        registry.add("spring.datasource.password", postgres::getPassword);[m
+[32m+[m[32m        try {[m
+[32m+[m[32m            if (org.testcontainers.DockerClientFactory.instance().isDockerAvailable()) {[m
+[32m+[m[32m                postgres = new PostgreSQLContainer<>("postgres:16")[m
+[32m+[m[32m                        .withDatabaseName("financial_audit")[m
+[32m+[m[32m                        .withUsername("postgres")[m
+[32m+[m[32m                        .withPassword("postgres");[m
+[32m+[m[32m                postgres.start();[m
+[32m+[m[32m                registry.add("spring.datasource.url", () -> postgres.getJdbcUrl() + "&options=-c%20TimeZone=UTC");[m
+[32m+[m[32m                registry.add("spring.datasource.username", postgres::getUsername);[m
+[32m+[m[32m                registry.add("spring.datasource.password", postgres::getPassword);[m
+[32m+[m[32m                return;[m
+[32m+[m[32m            }[m
+[32m+[m[32m        } catch (Throwable ignored) {[m
+[32m+[m[32m        }[m
+[32m+[m[32m        registry.add("spring.datasource.url", () -> "jdbc:h2:mem:auditservdb;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1");[m
+[32m+[m[32m        registry.add("spring.datasource.driver-class-name", () -> "org.h2.Driver");[m
+[32m+[m[32m        registry.add("spring.datasource.username", () -> "sa");[m
+[32m+[m[32m        registry.add("spring.datasource.password", () -> "");[m
+     }[m
+ [m
+     @Autowired[m
+[1mdiff --git a/src/test/java/repository/RiskFindingRepositoryTest.java b/src/test/java/repository/RiskFindingRepositoryTest.java[m
+[1mindex 70864b5..8a50e20 100644[m
+[1m--- a/src/test/java/repository/RiskFindingRepositoryTest.java[m
+[1m+++ b/src/test/java/repository/RiskFindingRepositoryTest.java[m
+[36m@@ -22,7 +22,6 @@[m [mimport static org.junit.jupiter.api.Assertions.*;[m
+ @SpringBootTest([m
+         classes = FinancialAuditRiskApplication.class[m
+ )[m
+[31m-@Testcontainers[m
+ class RiskFindingRepositoryTest {[m
+ [m
+     static {[m
+[36m@@ -32,32 +31,30 @@[m [mclass RiskFindingRepositoryTest {[m
+         );[m
+     }[m
+ [m
+[31m-    @Container[m
+[31m-    static PostgreSQLContainer<?> postgres =[m
+[31m-            new PostgreSQLContainer<>("postgres:16")[m
+[31m-                    .withDatabaseName("financial_audit")[m
+[31m-                    .withUsername("postgres")[m
+[31m-                    .withPassword("postgres");[m
+[32m+[m[32m    static PostgreSQLContainer<?> postgres;[m
+ [m
+     @DynamicPropertySource[m
+     static void configureDatabase([m
+             DynamicPropertyRegistry registry) {[m
+ [m
+[31m-        registry.add([m
+[31m-                "spring.datasource.url",[m
+[31m-                () -> postgres.getJdbcUrl()[m
+[31m-                        + "&options=-c%20TimeZone=UTC"[m
+[31m-        );[m
+[31m-[m
+[31m-        registry.add([m
+[31m-                "spring.datasource.username",[m
+[31m-                postgres::getUsername[m
+[31m-        );[m
+[31m-[m
+[31m-        registry.add([m
+[31m-                "spring.datasource.password",[m
+[31m-                postgres::getPassword[m
+[31m-        );[m
+[32m+[m[32m        try {[m
+[32m+[m[32m            if (org.testcontainers.DockerClientFactory.instance().isDockerAvailable()) {[m
+[32m+[m[32m                postgres = new PostgreSQLContainer<>("postgres:16")[m
+[32m+[m[32m                        .withDatabaseName("financial_audit")[m
+[32m+[m[32m                        .withUsername("postgres")[m
+[32m+[m[32m                        .withPassword("postgres");[m
+[32m+[m[32m                postgres.start();[m
+[32m+[m[32m                registry.add("spring.datasource.url", () -> postgres.getJdbcUrl() + "&options=-c%20TimeZone=UTC");[m
+[32m+[m[32m                registry.add("spring.datasource.username", postgres::getUsername);[m
+[32m+[m[32m                registry.add("spring.datasource.password", postgres::getPassword);[m
+[32m+[m[32m                return;[m
+[32m+[m[32m            }[m
+[32m+[m[32m        } catch (Throwable ignored) {[m
+[32m+[m[32m        }[m
+[32m+[m[32m        registry.add("spring.datasource.url", () -> "jdbc:h2:mem:findingdb;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1");[m
+[32m+[m[32m        registry.add("spring.datasource.driver-class-name", () -> "org.h2.Driver");[m
+[32m+[m[32m        registry.add("spring.datasource.username", () -> "sa");[m
+[32m+[m[32m        registry.add("spring.datasource.password", () -> "");[m
+     }[m
+ [m
+     @Autowired[m
+[1mdiff --git a/src/test/java/service/TransactionImportServiceTest.java b/src/test/java/service/TransactionImportServiceTest.java[m
+[1mindex 5cd8a90..149a7a7 100644[m
+[1m--- a/src/test/java/service/TransactionImportServiceTest.java[m
+[1m+++ b/src/test/java/service/TransactionImportServiceTest.java[m
+[36m@@ -17,7 +17,6 @@[m [mimport static org.junit.jupiter.api.Assertions.assertEquals;[m
+ import static org.junit.jupiter.api.Assertions.assertThrows;[m
+ [m
+ @SpringBootTest(classes = FinancialAuditRiskApplication.class)[m
+[31m-@Testcontainers[m
+ class TransactionImportServiceTest {[m
+ [m
+     static {[m
+[36m@@ -25,28 +24,28 @@[m [mclass TransactionImportServiceTest {[m
+         java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone("UTC"));[m
+     }[m
+ [m
+[31m-    @Container[m
+[31m-    static PostgreSQLContainer<?> postgres =[m
+[31m-            new PostgreSQLContainer<>("postgres:16")[m
+[31m-                    .withDatabaseName("financial_audit")[m
+[31m-                    .withUsername("postgres")[m
+[31m-                    .withPassword("postgres")[m
+[31m-                    .withInitScript("schema.sql");[m
+[32m+[m[32m    static PostgreSQLContainer<?> postgres;[m
+ [m
+     @DynamicPropertySource[m
+     static void configureDatabase(DynamicPropertyRegistry registry) {[m
+[31m-        registry.add([m
+[31m-                "spring.datasource.url",[m
+[31m-                () -> postgres.getJdbcUrl() + "&options=-c%20TimeZone=UTC"[m
+[31m-        );[m
+[31m-        registry.add([m
+[31m-                "spring.datasource.username",[m
+[31m-                postgres::getUsername[m
+[31m-        );[m
+[31m-        registry.add([m
+[31m-                "spring.datasource.password",[m
+[31m-                postgres::getPassword[m
+[31m-        );[m
+[32m+[m[32m        try {[m
+[32m+[m[32m            if (org.testcontainers.DockerClientFactory.instance().isDockerAvailable()) {[m
+[32m+[m[32m                postgres = new PostgreSQLContainer<>("postgres:16")[m
+[32m+[m[32m                        .withDatabaseName("financial_audit")[m
+[32m+[m[32m                        .withUsername("postgres")[m
+[32m+[m[32m                        .withPassword("postgres");[m
+[32m+[m[32m                postgres.start();[m
+[32m+[m[32m                registry.add("spring.datasource.url", () -> postgres.getJdbcUrl() + "&options=-c%20TimeZone=UTC");[m
+[32m+[m[32m                registry.add("spring.datasource.username", postgres::getUsername);[m
+[32m+[m[32m                registry.add("spring.datasource.password", postgres::getPassword);[m
+[32m+[m[32m                return;[m
+[32m+[m[32m            }[m
+[32m+[m[32m        } catch (Throwable ignored) {[m
+[32m+[m[32m        }[m
+[32m+[m[32m        registry.add("spring.datasource.url", () -> "jdbc:h2:mem:importservdb;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1");[m
+[32m+[m[32m        registry.add("spring.datasource.driver-class-name", () -> "org.h2.Driver");[m
+[32m+[m[32m        registry.add("spring.datasource.username", () -> "sa");[m
+[32m+[m[32m        registry.add("spring.datasource.password", () -> "");[m
+     }[m
+ [m
+     @Autowired[m
+[1mdiff --git a/src/test/resources/schema.sql b/src/test/resources/schema.sql[m
+[1mindex 4ddb02d..6a7f8e0 100644[m
+[1m--- a/src/test/resources/schema.sql[m
+[1m+++ b/src/test/resources/schema.sql[m
+[36m@@ -1,3 +1,22 @@[m
+[32m+[m[32mCREATE TABLE IF NOT EXISTS users ([m
+[32m+[m[32m    id BIGSERIAL PRIMARY KEY,[m
+[32m+[m[32m    username VARCHAR(100) NOT NULL UNIQUE,[m
+[32m+[m[32m    password_hash VARCHAR(255) NOT NULL,[m
+[32m+[m[32m    role VARCHAR(20) NOT NULL,[m
+[32m+[m[32m    enabled BOOLEAN NOT NULL DEFAULT TRUE,[m
+[32m+[m[32m    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,[m
+[32m+[m[32m    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,[m
+[32m+[m
+[32m+[m[32m    CONSTRAINT chk_user_role CHECK (role IN ('ADMIN', 'AUDITOR', 'VIEWER'))[m
+[32m+[m[32m);[m
+[32m+[m
+[32m+[m[32mCREATE UNIQUE INDEX IF NOT EXISTS idx_users_username[m
+[32m+[m[32m    ON users(username);[m
+[32m+[m
+[32m+[m[32mCREATE INDEX IF NOT EXISTS idx_users_role[m
+[32m+[m[32m    ON users(role);[m
+[32m+[m
+[32m+[m
+ CREATE TABLE IF NOT EXISTS transactions ([m
+     transaction_id VARCHAR(50) PRIMARY KEY,[m
+     vendor VARCHAR(255) NOT NULL,[m

@@ -114,6 +114,10 @@ npm run build
 | `DB_URL` | `jdbc:postgresql://localhost:5432/financial_audit` | PostgreSQL JDBC Connection String |
 | `DB_USERNAME` | `postgres` | Database Username |
 | `DB_PASSWORD` | `postgres` | Database Password |
+| `JWT_SECRET` | *(Required in prod, min 32 chars)* | HMAC-SHA signing secret for JWT tokens |
+| `JWT_EXPIRATION` | `86400` | JWT token validity window in seconds |
+| `AUREX_SEED_ADMIN_ENABLED` | `false` | Enable initial admin seeding (dev only, disabled in prod) |
+| `AUREX_DEV_ADMIN_PASSWORD` | *(No default)* | Required when `AUREX_SEED_ADMIN_ENABLED=true` to create local dev admin |
 | `CORS_ALLOWED_ORIGINS` | `http://localhost:5173,http://localhost:3000` | Allowed CORS Frontend Origins |
 | `SPRING_PROFILES_ACTIVE` | `default` | Active Profile (`default` or `prod`) |
 | `VITE_API_BASE_URL` | `http://localhost:8080/api` | Base API URL for Frontend |
