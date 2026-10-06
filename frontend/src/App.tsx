@@ -4,6 +4,7 @@ import { ThemeProvider } from './hooks/useTheme'
 import { AuthProvider } from './context/AuthContext'
 import { AppLayout } from './layouts/AppLayout'
 import { Skeleton } from './components/common/Skeleton'
+import { ProtectedRoute, PublicRoute } from './components/auth/ProtectedRoute'
 
 const Dashboard = lazy(() => import('./pages/Dashboard').then((m) => ({ default: m.Dashboard })))
 const Transactions = lazy(() => import('./pages/Transactions').then((m) => ({ default: m.Transactions })))
@@ -42,19 +43,27 @@ export const App: React.FC = () => {
         <BrowserRouter>
           <Suspense fallback={<PageLoader />}>
             <Routes>
-              {/* Login — standalone, no AppLayout shell */}
-              <Route path="/login" element={<LoginPage />} />
+              {/* ── Public routes (unauthenticated only) ─────────────────
+                  PublicRoute redirects authenticated users to / so they
+                  don't land on /login after already being signed in.    */}
+              <Route element={<PublicRoute />}>
+                <Route path="/login" element={<LoginPage />} />
+              </Route>
 
-              {/* App shell — sidebar + header */}
-              <Route path="/" element={<AppLayout />}>
-                <Route index element={<Dashboard />} />
-                <Route path="transactions" element={<Transactions />} />
-                <Route path="transactions/:id" element={<TransactionInvestigation />} />
-                <Route path="intelligence" element={<RiskIntelligencePage />} />
-                <Route path="investigations" element={<InvestigationsPage />} />
-                <Route path="history" element={<HistoryPage />} />
-                <Route path="import" element={<ImportPage />} />
-                <Route path="*" element={<Navigate to="/" replace />} />
+              {/* ── Protected routes (authenticated only) ────────────────
+                  ProtectedRoute waits for session restoration before
+                  deciding to render or redirect to /login.              */}
+              <Route element={<ProtectedRoute />}>
+                <Route path="/" element={<AppLayout />}>
+                  <Route index element={<Dashboard />} />
+                  <Route path="transactions" element={<Transactions />} />
+                  <Route path="transactions/:id" element={<TransactionInvestigation />} />
+                  <Route path="intelligence" element={<RiskIntelligencePage />} />
+                  <Route path="investigations" element={<InvestigationsPage />} />
+                  <Route path="history" element={<HistoryPage />} />
+                  <Route path="import" element={<ImportPage />} />
+                  <Route path="*" element={<Navigate to="/" replace />} />
+                </Route>
               </Route>
             </Routes>
           </Suspense>
