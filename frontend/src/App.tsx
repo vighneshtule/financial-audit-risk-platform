@@ -5,6 +5,7 @@ import { AuthProvider } from './context/AuthContext'
 import { AppLayout } from './layouts/AppLayout'
 import { Skeleton } from './components/common/Skeleton'
 import { ProtectedRoute, PublicRoute } from './components/auth/ProtectedRoute'
+import { RoleGuard } from './components/auth/RoleGuard'
 
 const Dashboard = lazy(() => import('./pages/Dashboard').then((m) => ({ default: m.Dashboard })))
 const Transactions = lazy(() => import('./pages/Transactions').then((m) => ({ default: m.Transactions })))
@@ -61,7 +62,14 @@ export const App: React.FC = () => {
                   <Route path="intelligence" element={<RiskIntelligencePage />} />
                   <Route path="investigations" element={<InvestigationsPage />} />
                   <Route path="history" element={<HistoryPage />} />
-                  <Route path="import" element={<ImportPage />} />
+                  <Route
+                    path="import"
+                    element={
+                      <RoleGuard roles={['ADMIN', 'AUDITOR']}>
+                        <ImportPage />
+                      </RoleGuard>
+                    }
+                  />
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Route>
               </Route>
