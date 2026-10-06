@@ -1,6 +1,7 @@
 import React, { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { ThemeProvider } from './hooks/useTheme'
+import { AuthProvider } from './context/AuthContext'
 import { AppLayout } from './layouts/AppLayout'
 import { Skeleton } from './components/common/Skeleton'
 
@@ -33,22 +34,27 @@ const PageLoader: React.FC = () => (
 export const App: React.FC = () => {
   return (
     <ThemeProvider>
-      <BrowserRouter>
-        <Suspense fallback={<PageLoader />}>
-          <Routes>
-            <Route path="/" element={<AppLayout />}>
-              <Route index element={<Dashboard />} />
-              <Route path="transactions" element={<Transactions />} />
-              <Route path="transactions/:id" element={<TransactionInvestigation />} />
-              <Route path="intelligence" element={<RiskIntelligencePage />} />
-              <Route path="investigations" element={<InvestigationsPage />} />
-              <Route path="history" element={<HistoryPage />} />
-              <Route path="import" element={<ImportPage />} />
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Route>
-          </Routes>
-        </Suspense>
-      </BrowserRouter>
+      {/* AuthProvider sits inside ThemeProvider, outside BrowserRouter.
+          This ensures auth state is available to all routes while keeping
+          the auth layer independent of React Router. */}
+      <AuthProvider>
+        <BrowserRouter>
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              <Route path="/" element={<AppLayout />}>
+                <Route index element={<Dashboard />} />
+                <Route path="transactions" element={<Transactions />} />
+                <Route path="transactions/:id" element={<TransactionInvestigation />} />
+                <Route path="intelligence" element={<RiskIntelligencePage />} />
+                <Route path="investigations" element={<InvestigationsPage />} />
+                <Route path="history" element={<HistoryPage />} />
+                <Route path="import" element={<ImportPage />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Route>
+            </Routes>
+          </Suspense>
+        </BrowserRouter>
+      </AuthProvider>
     </ThemeProvider>
   )
 }
