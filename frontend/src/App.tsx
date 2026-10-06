@@ -18,6 +18,7 @@ const InvestigationsPage = lazy(() =>
 const RiskIntelligencePage = lazy(() =>
   import('./pages/RiskIntelligence').then((m) => ({ default: m.RiskIntelligencePage }))
 )
+const LoginPage = lazy(() => import('./pages/Login').then((m) => ({ default: m.LoginPage })))
 
 const PageLoader: React.FC = () => (
   <div className="p-6 space-y-4 max-w-7xl mx-auto">
@@ -41,6 +42,10 @@ export const App: React.FC = () => {
         <BrowserRouter>
           <Suspense fallback={<PageLoader />}>
             <Routes>
+              {/* Login — standalone, no AppLayout shell */}
+              <Route path="/login" element={<LoginPage />} />
+
+              {/* App shell — sidebar + header */}
               <Route path="/" element={<AppLayout />}>
                 <Route index element={<Dashboard />} />
                 <Route path="transactions" element={<Transactions />} />
