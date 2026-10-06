@@ -11,21 +11,34 @@ import {
   X,
 } from 'lucide-react'
 import { cn } from '../../lib/utils'
+import { useRoles } from '../../hooks/useRoles'
+import type { UserRole } from '../../types/auth'
 
 interface SidebarProps {
   isOpen?: boolean
   onClose?: () => void
 }
 
+interface NavItem {
+  label: string
+  to: string
+  icon: React.ComponentType<{ className?: string }>
+  roles: UserRole[]
+}
+
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
-  const navItems = [
-    { label: 'Overview', to: '/', icon: LayoutDashboard },
-    { label: 'Risk Intelligence', to: '/intelligence', icon: LineChart },
-    { label: 'Transactions', to: '/transactions', icon: ReceiptText },
-    { label: 'Investigations', to: '/investigations', icon: SearchCode },
-    { label: 'History', to: '/history', icon: History },
-    { label: 'Import', to: '/import', icon: UploadCloud },
+  const { user, roleLabel, hasAnyRole } = useRoles()
+
+  const navItems: NavItem[] = [
+    { label: 'Overview', to: '/', icon: LayoutDashboard, roles: ['ADMIN', 'AUDITOR', 'VIEWER'] },
+    { label: 'Risk Intelligence', to: '/intelligence', icon: LineChart, roles: ['ADMIN', 'AUDITOR', 'VIEWER'] },
+    { label: 'Transactions', to: '/transactions', icon: ReceiptText, roles: ['ADMIN', 'AUDITOR', 'VIEWER'] },
+    { label: 'Investigations', to: '/investigations', icon: SearchCode, roles: ['ADMIN', 'AUDITOR', 'VIEWER'] },
+    { label: 'History', to: '/history', icon: History, roles: ['ADMIN', 'AUDITOR', 'VIEWER'] },
+    { label: 'Import', to: '/import', icon: UploadCloud, roles: ['ADMIN', 'AUDITOR'] },
   ]
+
+  const visibleNavItems = navItems.filter((item) => hasAnyRole(item.roles))
 
   return (
     <>
@@ -98,7 +111,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           <div className="px-2 pb-3 text-[11px] font-medium tracking-wider text-zinc-400 dark:text-zinc-500 uppercase">
             Platform
           </div>
-          {navItems.map((item) => {
+          {visibleNavItems.map((item) => {
             const Icon = item.icon
             return (
               <NavLink
@@ -122,7 +135,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           })}
         </div>
 
-        {/* Footer — User Profile only (no theme toggle here) */}
+        {/* Footer — Authenticated User Profile */}
         <div className="p-3 border-t border-zinc-200/80 dark:border-zinc-800/80">
           <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-zinc-50 dark:bg-zinc-900/60 border border-zinc-200/60 dark:border-zinc-800/60">
             <div className="w-7 h-7 rounded-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center text-zinc-600 dark:text-zinc-300">
@@ -130,10 +143,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs font-medium text-zinc-900 dark:text-zinc-100 truncate">
-                Audit Lead
+                {user?.username || 'User'}
               </p>
               <p className="text-[10px] text-zinc-500 dark:text-zinc-400 truncate">
-                Compliance Officer
+                {roleLabel || 'Authenticated'}
               </p>
             </div>
           </div>

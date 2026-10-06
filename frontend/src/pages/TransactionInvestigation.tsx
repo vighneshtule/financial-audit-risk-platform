@@ -43,6 +43,7 @@ import { RiskScoreGauge } from '../components/common/RiskScoreGauge'
 import { FindingCard } from '../components/risk/FindingCard'
 import { Skeleton } from '../components/common/Skeleton'
 import { formatCurrency, formatDate, formatRelativeTime } from '../lib/utils'
+import { useRoles } from '../hooks/useRoles'
 
 // ── Audit Decision helpers ────────────────────────────────────────────────────
 
@@ -110,6 +111,8 @@ const AuditDecisionBadge: React.FC<{ decision: AuditDecisionType; className?: st
 export const TransactionInvestigation: React.FC = () => {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const { user, hasAnyRole } = useRoles()
+  const canMutate = hasAnyRole(['ADMIN', 'AUDITOR'])
 
   // Core data
   const [transaction, setTransaction] = useState<Transaction | null>(null)
@@ -138,7 +141,13 @@ export const TransactionInvestigation: React.FC = () => {
     decision: AuditDecisionType | ''
     comment: string
     decidedBy: string
-  }>({ decision: '', comment: '', decidedBy: '' })
+  }>({ decision: '', comment: '', decidedBy: user?.username || '' })
+
+  useEffect(() => {
+    if (user?.username && !auditForm.decidedBy) {
+      setAuditForm((f) => ({ ...f, decidedBy: user.username }))
+    }
+  }, [user])
 
   // ── Loaders ──────────────────────────────────────────────────────────────────
 
@@ -413,15 +422,17 @@ export const TransactionInvestigation: React.FC = () => {
               Return to Current
             </button>
           )}
-          <button
-            onClick={handleRunAnalysis}
-            disabled={analyzing}
-            aria-label="Run and persist risk analysis"
-            className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors shadow-2xs disabled:opacity-50"
-          >
-            <Play className={`w-3.5 h-3.5 ${analyzing ? 'animate-pulse' : ''}`} />
-            {analyzing ? 'Running Analysis…' : 'Run & Persist Analysis'}
-          </button>
+          {canMutate && (
+            <button
+              onClick={handleRunAnalysis}
+              disabled={analyzing}
+              aria-label="Run and persist risk analysis"
+              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors shadow-2xs disabled:opacity-50"
+            >
+              <Play className={`w-3.5 h-3.5 ${analyzing ? 'animate-pulse' : ''}`} />
+              {analyzing ? 'Running Analysis…' : 'Run & Persist Analysis'}
+            </button>
+          )}
         </div>
       </div>
 
@@ -770,13 +781,15 @@ export const TransactionInvestigation: React.FC = () => {
                 ) : (
                   <div className="py-6 text-center text-xs text-zinc-400 dark:text-zinc-500 space-y-2">
                     <p>No persisted runs yet.</p>
-                    <button
-                      onClick={handleRunAnalysis}
-                      disabled={analyzing}
-                      className="text-[11px] text-zinc-600 dark:text-zinc-300 underline hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
-                    >
-                      Persist first run now
-                    </button>
+                    {canMutate && (
+                      <button
+                        onClick={handleRunAnalysis}
+                        disabled={analyzing}
+                        className="text-[11px] text-zinc-600 dark:text-zinc-300 underline hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+                      >
+                        Persist first run now
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -960,137 +973,148 @@ export const TransactionInvestigation: React.FC = () => {
                 <Skeleton className="h-20 w-full rounded-lg" />
               )}
 
-              {/* Form */}
-              <div className="space-y-4">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 flex items-center gap-2">
-                  <Send className="w-3.5 h-3.5" />
-                  Record New Decision
-                </h3>
+              {/* Form or Read-Only state */}
+              {canMutate ? (
+                <div className="space-y-4">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 flex items-center gap-2">
+                    <Send className="w-3.5 h-3.5" />
+                    Record New Decision
+                  </h3>
 
-                {/* Success */}
-                <AnimatePresence>
-                  {auditSuccess && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -4 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -4 }}
-                      className="flex items-center gap-2 p-3 rounded-lg border border-emerald-300 dark:border-emerald-700/50 bg-emerald-50 dark:bg-emerald-950/20 text-xs text-emerald-700 dark:text-emerald-400"
-                    >
-                      <CheckCircle2 className="w-4 h-4 shrink-0" />
-                      Decision recorded. The audit trail has been updated.
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-
-                {/* Error */}
-                {auditError && (
-                  <div className="p-3 rounded-lg border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/20 text-xs text-red-600 dark:text-red-400 flex items-center gap-2">
-                    <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-                    {auditError}
-                  </div>
-                )}
-
-                <div className="space-y-3">
-                  {/* Decision buttons */}
-                  <fieldset>
-                    <legend className="block text-[10px] uppercase font-bold text-zinc-400 mb-2 tracking-wider">
-                      Decision <span className="text-red-400" aria-label="required">*</span>
-                    </legend>
-                    <div className="grid grid-cols-2 gap-2">
-                      {(['CONFIRMED_RISK', 'FALSE_POSITIVE', 'REQUIRES_INVESTIGATION', 'ESCALATED'] as AuditDecisionType[]).map((dtype) => (
-                        <button
-                          key={dtype}
-                          type="button"
-                          aria-pressed={auditForm.decision === dtype}
-                          aria-label={decisionLabel(dtype)}
-                          onClick={() => setAuditForm(f => ({ ...f, decision: f.decision === dtype ? '' : dtype }))}
-                          className={`px-3 py-2.5 rounded-lg text-left border transition-all leading-tight ${
-                            auditForm.decision === dtype
-                              ? decisionActiveStyle(dtype)
-                              : 'border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/40 text-zinc-600 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-700'
-                          }`}
-                        >
-                          <span className="block text-[11px] font-bold">{decisionLabel(dtype)}</span>
-                          <span className="block text-[10px] font-normal opacity-70 mt-0.5">
-                            {decisionDescription(dtype)}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  </fieldset>
-
-                  {/* Auditor name */}
-                  <div>
-                    <label
-                      htmlFor="audit-decided-by"
-                      className="block text-[10px] uppercase font-bold text-zinc-400 mb-1.5 tracking-wider"
-                    >
-                      Auditor Name <span className="text-red-400" aria-label="required">*</span>
-                    </label>
-                    <input
-                      id="audit-decided-by"
-                      type="text"
-                      value={auditForm.decidedBy}
-                      onChange={e => setAuditForm(f => ({ ...f, decidedBy: e.target.value }))}
-                      placeholder="Your name or identifier"
-                      maxLength={100}
-                      className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/60 text-xs text-zinc-800 dark:text-zinc-200 placeholder-zinc-400 focus:outline-none focus:ring-1 focus:ring-indigo-400 dark:focus:ring-indigo-600 transition-colors"
-                    />
-                  </div>
-
-                  {/* Comment */}
-                  <div>
-                    <label
-                      htmlFor="audit-comment"
-                      className="block text-[10px] uppercase font-bold text-zinc-400 mb-1.5 tracking-wider"
-                    >
-                      Comment <span className="text-red-400" aria-label="required">*</span>
-                    </label>
-                    <textarea
-                      id="audit-comment"
-                      value={auditForm.comment}
-                      onChange={e => setAuditForm(f => ({ ...f, comment: e.target.value }))}
-                      placeholder="Describe your audit rationale and findings…"
-                      rows={3}
-                      maxLength={2000}
-                      className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/60 text-xs text-zinc-800 dark:text-zinc-200 placeholder-zinc-400 focus:outline-none focus:ring-1 focus:ring-indigo-400 dark:focus:ring-indigo-600 transition-colors resize-none"
-                    />
-                    <p className="text-[10px] text-zinc-400 mt-1 text-right">
-                      {auditForm.comment.length} / 2000
-                    </p>
-                  </div>
-
-                  <button
-                    type="button"
-                    disabled={auditSubmitting || !isFormValid}
-                    onClick={handleSubmitDecision}
-                    aria-label="Submit audit decision"
-                    className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 disabled:opacity-40 disabled:cursor-not-allowed text-white transition-colors shadow-sm"
-                  >
-                    {auditSubmitting ? (
-                      <>
-                        <motion.span
-                          className="inline-block w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full"
-                          animate={{ rotate: 360 }}
-                          transition={{ duration: 0.7, repeat: Infinity, ease: 'linear' }}
-                        />
-                        Submitting…
-                      </>
-                    ) : (
-                      <>
-                        <Send className="w-3.5 h-3.5" />
-                        Submit Decision
-                      </>
+                  {/* Success */}
+                  <AnimatePresence>
+                    {auditSuccess && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -4 }}
+                        className="flex items-center gap-2 p-3 rounded-lg border border-emerald-300 dark:border-emerald-700/50 bg-emerald-50 dark:bg-emerald-950/20 text-xs text-emerald-700 dark:text-emerald-400"
+                      >
+                        <CheckCircle2 className="w-4 h-4 shrink-0" />
+                        Decision recorded. The audit trail has been updated.
+                      </motion.div>
                     )}
-                  </button>
+                  </AnimatePresence>
 
-                  {!isFormValid && !auditSubmitting && (
-                    <p className="text-[10px] text-zinc-400 text-center">
-                      Decision, auditor name, and comment are all required.
-                    </p>
+                  {/* Error */}
+                  {auditError && (
+                    <div className="p-3 rounded-lg border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/20 text-xs text-red-600 dark:text-red-400 flex items-center gap-2">
+                      <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                      {auditError}
+                    </div>
                   )}
+
+                  <div className="space-y-3">
+                    {/* Decision buttons */}
+                    <fieldset>
+                      <legend className="block text-[10px] uppercase font-bold text-zinc-400 mb-2 tracking-wider">
+                        Decision <span className="text-red-400" aria-label="required">*</span>
+                      </legend>
+                      <div className="grid grid-cols-2 gap-2">
+                        {(['CONFIRMED_RISK', 'FALSE_POSITIVE', 'REQUIRES_INVESTIGATION', 'ESCALATED'] as AuditDecisionType[]).map((dtype) => (
+                          <button
+                            key={dtype}
+                            type="button"
+                            aria-pressed={auditForm.decision === dtype}
+                            aria-label={decisionLabel(dtype)}
+                            onClick={() => setAuditForm(f => ({ ...f, decision: f.decision === dtype ? '' : dtype }))}
+                            className={`px-3 py-2.5 rounded-lg text-left border transition-all leading-tight ${
+                              auditForm.decision === dtype
+                                ? decisionActiveStyle(dtype)
+                                : 'border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/40 text-zinc-600 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-700'
+                            }`}
+                          >
+                            <span className="block text-[11px] font-bold">{decisionLabel(dtype)}</span>
+                            <span className="block text-[10px] font-normal opacity-70 mt-0.5">
+                              {decisionDescription(dtype)}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </fieldset>
+
+                    {/* Auditor name */}
+                    <div>
+                      <label
+                        htmlFor="audit-decided-by"
+                        className="block text-[10px] uppercase font-bold text-zinc-400 mb-1.5 tracking-wider"
+                      >
+                        Auditor Name <span className="text-red-400" aria-label="required">*</span>
+                      </label>
+                      <input
+                        id="audit-decided-by"
+                        type="text"
+                        value={auditForm.decidedBy}
+                        onChange={e => setAuditForm(f => ({ ...f, decidedBy: e.target.value }))}
+                        placeholder="Your name or identifier"
+                        maxLength={100}
+                        className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/60 text-xs text-zinc-800 dark:text-zinc-200 placeholder-zinc-400 focus:outline-none focus:ring-1 focus:ring-indigo-400 dark:focus:ring-indigo-600 transition-colors"
+                      />
+                    </div>
+
+                    {/* Comment */}
+                    <div>
+                      <label
+                        htmlFor="audit-comment"
+                        className="block text-[10px] uppercase font-bold text-zinc-400 mb-1.5 tracking-wider"
+                      >
+                        Comment <span className="text-red-400" aria-label="required">*</span>
+                      </label>
+                      <textarea
+                        id="audit-comment"
+                        value={auditForm.comment}
+                        onChange={e => setAuditForm(f => ({ ...f, comment: e.target.value }))}
+                        placeholder="Describe your audit rationale and findings…"
+                        rows={3}
+                        maxLength={2000}
+                        className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/60 text-xs text-zinc-800 dark:text-zinc-200 placeholder-zinc-400 focus:outline-none focus:ring-1 focus:ring-indigo-400 dark:focus:ring-indigo-600 transition-colors resize-none"
+                      />
+                      <p className="text-[10px] text-zinc-400 mt-1 text-right">
+                        {auditForm.comment.length} / 2000
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={auditSubmitting || !isFormValid}
+                      onClick={handleSubmitDecision}
+                      aria-label="Submit audit decision"
+                      className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 disabled:opacity-40 disabled:cursor-not-allowed text-white transition-colors shadow-sm"
+                    >
+                      {auditSubmitting ? (
+                        <>
+                          <motion.span
+                            className="inline-block w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full"
+                            animate={{ rotate: 360 }}
+                            transition={{ duration: 0.7, repeat: Infinity, ease: 'linear' }}
+                          />
+                          Submitting…
+                        </>
+                      ) : (
+                        <>
+                          <Send className="w-3.5 h-3.5" />
+                          Submit Decision
+                        </>
+                      )}
+                    </button>
+
+                    {!isFormValid && !auditSubmitting && (
+                      <p className="text-[10px] text-zinc-400 text-center">
+                        Decision, auditor name, and comment are all required.
+                      </p>
+                    )}
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="p-4 rounded-lg border border-zinc-200/80 dark:border-zinc-800/80 bg-zinc-50/40 dark:bg-zinc-900/20 text-center space-y-1">
+                  <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                    Audit Decision View Only
+                  </p>
+                  <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                    Your current role does not have permission to submit or modify audit decisions.
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* RIGHT: Audit Trail */}
