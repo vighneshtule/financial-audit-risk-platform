@@ -31,9 +31,14 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Delegate to AuthProvider via the registered callback.
-      // Routing/redirect is intentionally left to the React layer.
-      notifyUnauthorized()
+      // Do not trigger session expiry for login credential failures.
+      // Those must display safe invalid credentials error on the form.
+      const isLoginRequest = error.config?.url?.includes('/auth/login')
+      if (!isLoginRequest) {
+        // Delegate to AuthProvider via the registered callback.
+        // Routing/redirect is intentionally left to the React layer.
+        notifyUnauthorized()
+      }
     }
 
     // Standardize error messaging across production API responses

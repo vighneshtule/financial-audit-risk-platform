@@ -1,5 +1,5 @@
 import React from 'react'
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard,
   ReceiptText,
@@ -9,9 +9,11 @@ import {
   UploadCloud,
   User,
   X,
+  LogOut,
 } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import { useRoles } from '../../hooks/useRoles'
+import { useAuth } from '../../hooks/useAuth'
 import type { UserRole } from '../../types/auth'
 
 interface SidebarProps {
@@ -28,6 +30,14 @@ interface NavItem {
 
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const { user, roleLabel, hasAnyRole } = useRoles()
+  const { logout } = useAuth()
+  const navigate = useNavigate()
+
+  const handleLogout = () => {
+    logout()
+    navigate('/login', { replace: true })
+    onClose?.()
+  }
 
   const navItems: NavItem[] = [
     { label: 'Overview', to: '/', icon: LayoutDashboard, roles: ['ADMIN', 'AUDITOR', 'VIEWER'] },
@@ -135,10 +145,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           })}
         </div>
 
-        {/* Footer — Authenticated User Profile */}
-        <div className="p-3 border-t border-zinc-200/80 dark:border-zinc-800/80">
+        {/* Footer — Authenticated User Profile & Logout */}
+        <div className="p-3 border-t border-zinc-200/80 dark:border-zinc-800/80 space-y-2">
           <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-zinc-50 dark:bg-zinc-900/60 border border-zinc-200/60 dark:border-zinc-800/60">
-            <div className="w-7 h-7 rounded-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center text-zinc-600 dark:text-zinc-300">
+            <div className="w-7 h-7 rounded-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center text-zinc-600 dark:text-zinc-300 shrink-0">
               <User className="w-3.5 h-3.5" />
             </div>
             <div className="flex-1 min-w-0">
@@ -150,6 +160,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
               </p>
             </div>
           </div>
+          <button
+            id="sidebar-logout-btn"
+            type="button"
+            onClick={handleLogout}
+            aria-label="Sign out of account"
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50/60 dark:hover:bg-rose-500/10 border border-zinc-200/60 dark:border-zinc-800/60 hover:border-rose-200 dark:hover:border-rose-500/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-600 dark:focus-visible:outline-zinc-400 transition-colors cursor-pointer"
+          >
+            <LogOut className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+            <span>Sign out</span>
+          </button>
         </div>
       </aside>
     </>
