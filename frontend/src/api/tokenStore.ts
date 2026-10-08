@@ -16,6 +16,7 @@
 
 let _token: string | null = null
 let _onUnauthorized: (() => void) | null = null
+let _isHandlingUnauthorized = false
 
 /** Called by the apiClient request interceptor to retrieve the current token. */
 export function getToken(): string | null {
@@ -25,6 +26,9 @@ export function getToken(): string | null {
 /** Called by AuthProvider to update the token whenever auth state changes. */
 export function setToken(token: string | null): void {
   _token = token
+  if (token !== null) {
+    _isHandlingUnauthorized = false
+  }
 }
 
 /**
@@ -37,8 +41,20 @@ export function registerUnauthorizedHandler(handler: () => void): void {
 
 /**
  * Called by the apiClient response interceptor when a 401 is received.
- * Delegates to whatever handler AuthProvider registered.
+ * Deduplicates concurrent 401 responses: if multiple requests fail with 401
+ * simultaneously, only the first one triggers the unauthorized handler.
  */
 export function notifyUnauthorized(): void {
+  if (_isHandlingUnauthorized) {
+    return
+  }
+  _isHandlingUnauthorized = true
   _onUnauthorized?.()
+}
+
+/**
+ * Resets the unauthorized lock flag (e.g. on manual logout or after handling).
+ */
+export function resetUnauthorized(): void {
+  _isHandlingUnauthorized = false
 }

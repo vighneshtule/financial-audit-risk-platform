@@ -16,8 +16,10 @@ export interface AuthContextValue {
   token: string | null
   isAuthenticated: boolean
   isLoading: boolean
+  sessionExpired: boolean
   login: (username: string, password: string) => Promise<void>
   logout: () => void
+  clearSessionExpired: () => void
 }
 
 /** Shape stored in localStorage under AUREX_AUTH_STORAGE_KEY */

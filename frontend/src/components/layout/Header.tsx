@@ -1,7 +1,8 @@
 import React from 'react'
-import { Menu, Sun, Moon, ShieldAlert } from 'lucide-react'
+import { Menu, Sun, Moon, ShieldAlert, LogOut } from 'lucide-react'
 import { useTheme } from '../../hooks/useTheme'
-import { Link } from 'react-router-dom'
+import { useAuth } from '../../hooks/useAuth'
+import { Link, useNavigate } from 'react-router-dom'
 
 interface HeaderProps {
   onMenuClick: () => void
@@ -9,6 +10,13 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
   const { theme, toggleTheme } = useTheme()
+  const { logout } = useAuth()
+  const navigate = useNavigate()
+
+  const handleLogout = () => {
+    logout()
+    navigate('/login', { replace: true })
+  }
 
   const isDark = theme === 'dark'
   const ariaLabel = isDark ? 'Switch to light mode' : 'Switch to dark mode'
@@ -58,6 +66,18 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
           ) : (
             <Moon className="w-4 h-4 text-slate-600" aria-hidden="true" />
           )}
+        </button>
+
+        {/* ── Logout action ──────────────────────────────────────────────────── */}
+        <button
+          id="header-logout-btn"
+          type="button"
+          onClick={handleLogout}
+          title="Sign out"
+          aria-label="Sign out of AUREX"
+          className="p-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 text-zinc-500 dark:text-zinc-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50/60 dark:hover:bg-rose-500/10 hover:border-rose-200 dark:hover:border-rose-500/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-600 dark:focus-visible:outline-zinc-400 transition-colors cursor-pointer"
+        >
+          <LogOut className="w-4 h-4" aria-hidden="true" />
         </button>
       </div>
     </header>

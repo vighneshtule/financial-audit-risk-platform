@@ -25,7 +25,7 @@ import React, {
   useState,
 } from 'react'
 import { authApi } from '../api/auth'
-import { setToken, registerUnauthorizedHandler } from '../api/tokenStore'
+import { setToken, registerUnauthorizedHandler, resetUnauthorized } from '../api/tokenStore'
 import type { AuthContextValue, AuthUser, PersistedAuthState } from '../types/auth'
 
 // ── localStorage key ─────────────────────────────────────────────────────────
@@ -70,6 +70,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [user, setUser] = useState<AuthUser | null>(null)
   const [token, setTokenState] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [sessionExpired, setSessionExpired] = useState(false)
 
   /**
    * Synchronise the module-level tokenStore whenever our token state changes.
@@ -80,29 +81,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     setToken(newToken)
   }, [])
 
-  // ── clearAuth: called internally and by the 401 handler ──────────────────
-  // Use a ref so the registered 401 callback always closes over the latest
-  // version of clearAuth without needing to re-register on every render.
-  const clearAuthRef = useRef<() => void>(() => {
-    /* placeholder – replaced immediately below */
-  })
-
+  // ── clearAuth: called internally, on logout, and by the 401 handler ──────
   const clearAuth = useCallback(() => {
     setUser(null)
     syncToken(null)
     clearPersistedAuth()
   }, [syncToken])
 
-  // Keep the ref current so the 401 callback stays up to date.
-  useEffect(() => {
-    clearAuthRef.current = clearAuth
+  const clearSessionExpired = useCallback(() => {
+    setSessionExpired(false)
+    resetUnauthorized()
+  }, [])
+
+  // ── handleUnauthorized: called when an authenticated API request receives a 401 ──
+  const handleUnauthorized = useCallback(() => {
+    setSessionExpired(true)
+    clearAuth()
   }, [clearAuth])
+
+  // Use a ref so the registered 401 callback always closes over the latest
+  // version of handleUnauthorized without needing to re-register on every render.
+  const handleUnauthorizedRef = useRef<() => void>(handleUnauthorized)
+  useEffect(() => {
+    handleUnauthorizedRef.current = handleUnauthorized
+  }, [handleUnauthorized])
 
   // ── Session restoration on mount ─────────────────────────────────────────
   useEffect(() => {
     // Register the 401 handler once. Reads from ref so it's always current.
     registerUnauthorizedHandler(() => {
-      clearAuthRef.current()
+      handleUnauthorizedRef.current()
     })
 
     let cancelled = false
@@ -153,6 +161,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       const data = await authApi.login(username, password)
       const { token: newToken, user: newUser } = data
 
+      setSessionExpired(false)
+      resetUnauthorized()
       syncToken(newToken)
       setUser(newUser)
       persistAuth({ token: newToken, user: newUser })
@@ -162,6 +172,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // ── logout() ──────────────────────────────────────────────────────────────
   const logout = useCallback(() => {
+    setSessionExpired(false)
+    resetUnauthorized()
     clearAuth()
   }, [clearAuth])
 
@@ -172,8 +184,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     token,
     isAuthenticated,
     isLoading,
+    sessionExpired,
     login,
     logout,
+    clearSessionExpired,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

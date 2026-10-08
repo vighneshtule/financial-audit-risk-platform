@@ -7,7 +7,7 @@
 
 import React, { useState, useId } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Eye, EyeOff, Sun, Moon, AlertCircle, Loader2 } from 'lucide-react'
+import { Eye, EyeOff, Sun, Moon, AlertCircle, Loader2, Clock } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { useTheme } from '../hooks/useTheme'
 import { cn } from '../lib/utils'
@@ -81,7 +81,7 @@ const AurexLogo: React.FC<{ size?: number }> = ({ size = 40 }) => (
 
 // ── Login Page ─────────────────────────────────────────────────────────────────
 export const LoginPage: React.FC = () => {
-  const { login } = useAuth()
+  const { login, sessionExpired, clearSessionExpired } = useAuth()
   const { theme, toggleTheme } = useTheme()
   const navigate = useNavigate()
 
@@ -101,6 +101,7 @@ export const LoginPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setError(null)
+    clearSessionExpired()
 
     // Client-side validation
     const trimmedUsername = username.trim()
@@ -197,6 +198,24 @@ export const LoginPage: React.FC = () => {
                     aria-hidden="true"
                   />
                   <span className="text-xs font-medium leading-snug">{error}</span>
+                </div>
+              )}
+
+              {/* ── Session expired banner ─────────────────────────────────── */}
+              {sessionExpired && !error && (
+                <div
+                  id="session-expired-alert"
+                  role="alert"
+                  aria-live="polite"
+                  className="flex items-start gap-2.5 px-3.5 py-3 rounded-lg bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 text-amber-800 dark:text-amber-400"
+                >
+                  <Clock
+                    className="w-4 h-4 mt-0.5 shrink-0 text-amber-600 dark:text-amber-400"
+                    aria-hidden="true"
+                  />
+                  <span className="text-xs font-medium leading-snug">
+                    Your session has expired. Please sign in again.
+                  </span>
                 </div>
               )}
 
