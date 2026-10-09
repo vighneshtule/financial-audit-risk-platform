@@ -1,13 +1,15 @@
 /**
- * Sprint 2B.6 – Admin User Management Page
+ * Sprint 2B.7 – Admin User Management Page (Polish)
  *
- * Provides ADMIN users the ability to:
- * - View existing users, roles, statuses, and creation timestamps
- * - Create new AUDITOR and VIEWER accounts
- * - Enable/disable existing accounts with self-lockout & last-admin lockout protections
+ * Additions over 2B.6:
+ * - P1: Inline disable-confirmation row state (confirmingId)
+ * - P2: Modal Escape-key and backdrop-click dismissal
+ * - P3: Client-side search + role/status filter with no-match state
+ * - P4: Success banner auto-dismiss (5 s), updatedAt column, aria-live,
+ *       showPassword reset on modal close
  */
 
-import React, { useEffect, useState, useId } from 'react'
+import React, { useCallback, useEffect, useRef, useState, useId } from 'react'
 import {
   Users,
   UserPlus,
@@ -20,6 +22,8 @@ import {
   Loader2,
   UserCheck,
   UserX,
+  Search,
+  FilterX,
 } from 'lucide-react'
 import { usersApi } from '../api/users'
 import { useAuth } from '../hooks/useAuth'
@@ -28,6 +32,10 @@ import { ErrorState } from '../components/common/ErrorState'
 import { EmptyState } from '../components/common/EmptyState'
 import { Skeleton } from '../components/common/Skeleton'
 import { cn } from '../lib/utils'
+
+// ── Filter types ──────────────────────────────────────────────────────────────
+type RoleFilter = 'ALL' | UserRole
+type StatusFilter = 'ALL' | 'enabled' | 'disabled'
 
 export const UsersPage: React.FC = () => {
   const { user: currentUser } = useAuth()
@@ -38,8 +46,16 @@ export const UsersPage: React.FC = () => {
   const [actionError, setActionError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
-  // Status updating state per user id
+  // Per-row status-update loading state
   const [updatingId, setUpdatingId] = useState<number | null>(null)
+
+  // P1: inline disable-confirmation state — only one row at a time
+  const [confirmingId, setConfirmingId] = useState<number | null>(null)
+
+  // P3: client-side search + filter state
+  const [searchQuery, setSearchQuery] = useState('')
+  const [roleFilter, setRoleFilter] = useState<RoleFilter>('ALL')
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL')
 
   // Create User modal state
   const [showCreateModal, setShowCreateModal] = useState(false)
@@ -53,8 +69,18 @@ export const UsersPage: React.FC = () => {
   const modalUsernameId = useId()
   const modalPasswordId = useId()
   const modalRoleId = useId()
+  const searchId = useId()
 
-  const loadUsers = async () => {
+  // ── P4: Success banner auto-dismiss (5 s) ───────────────────────────────────
+  useEffect(() => {
+    if (!successMessage) return
+    const timer = setTimeout(() => setSuccessMessage(null), 5000)
+    return () => clearTimeout(timer)
+  }, [successMessage])
+
+  // ── Data loading ─────────────────────────────────────────────────────────────
+  const loadUsers = useCallback(async () => {
+    setConfirmingId(null) // P1: dismiss pending confirmation on refresh
     try {
       setLoading(true)
       setError(null)
@@ -65,23 +91,58 @@ export const UsersPage: React.FC = () => {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
     loadUsers()
-  }, [])
+  }, [loadUsers])
 
-  const handleToggleStatus = async (targetUser: ManagedUser) => {
+  // ── P3: Derived filtered user list ───────────────────────────────────────────
+  const filteredUsers = users.filter((u) => {
+    const matchesSearch =
+      searchQuery === '' ||
+      u.username.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesRole = roleFilter === 'ALL' || u.role === roleFilter
+    const matchesStatus =
+      statusFilter === 'ALL' ||
+      (statusFilter === 'enabled' ? u.enabled : !u.enabled)
+    return matchesSearch && matchesRole && matchesStatus
+  })
+
+  const hasActiveFilters =
+    searchQuery !== '' || roleFilter !== 'ALL' || statusFilter !== 'ALL'
+
+  const clearFilters = () => {
+    setSearchQuery('')
+    setRoleFilter('ALL')
+    setStatusFilter('ALL')
+  }
+
+  // ── P1: Disable confirmation flow ────────────────────────────────────────────
+  const handleDisableClick = (targetUser: ManagedUser) => {
+    // Only for enabled users — disable requires confirmation
+    setActionError(null)
+    setSuccessMessage(null)
+    setConfirmingId(targetUser.id)
+  }
+
+  const handleCancelConfirm = () => {
+    setConfirmingId(null)
+  }
+
+  // Shared status-update executor — called by confirm (disable) and direct enable
+  const executeStatusUpdate = async (targetUser: ManagedUser, newEnabled: boolean) => {
+    setConfirmingId(null)
     setActionError(null)
     setSuccessMessage(null)
 
-    // Client-side self-disable protection
+    // Client-side self-disable protection (ID-based AND username-based)
     const isSelf =
       (currentUser?.id != null && currentUser.id === targetUser.id) ||
       (currentUser?.username != null &&
         currentUser.username.toLowerCase() === targetUser.username.toLowerCase())
 
-    if (isSelf && targetUser.enabled) {
+    if (isSelf && !newEnabled) {
       setActionError('You cannot disable your own authenticated account.')
       return
     }
@@ -89,12 +150,10 @@ export const UsersPage: React.FC = () => {
     try {
       setUpdatingId(targetUser.id)
       const updated = await usersApi.updateUserStatus(targetUser.id, {
-        enabled: !targetUser.enabled,
+        enabled: newEnabled,
       })
 
-      setUsers((prev) =>
-        prev.map((u) => (u.id === updated.id ? updated : u))
-      )
+      setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)))
 
       setSuccessMessage(
         `User '${updated.username}' is now ${updated.enabled ? 'enabled' : 'disabled'}.`
@@ -106,6 +165,45 @@ export const UsersPage: React.FC = () => {
     }
   }
 
+  const handleConfirmDisable = (targetUser: ManagedUser) => {
+    executeStatusUpdate(targetUser, false)
+  }
+
+  const handleEnableUser = (targetUser: ManagedUser) => {
+    // Enable is immediate — no confirmation needed
+    setConfirmingId(null) // dismiss any stale confirm state
+    executeStatusUpdate(targetUser, true)
+  }
+
+  // ── P2: Modal close helper — guards against closing while submitting ─────────
+  const closeModal = useCallback(() => {
+    if (createSubmitting) return
+    setShowCreateModal(false)
+    setNewUsername('')
+    setNewPassword('')
+    setNewRole('AUDITOR')
+    setShowPassword(false) // P4: reset password visibility on close
+    setCreateError(null)
+  }, [createSubmitting])
+
+  // P2: Escape-key listener for modal
+  const createSubmittingRef = useRef(createSubmitting)
+  useEffect(() => {
+    createSubmittingRef.current = createSubmitting
+  }, [createSubmitting])
+
+  useEffect(() => {
+    if (!showCreateModal) return
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !createSubmittingRef.current) {
+        closeModal()
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [showCreateModal, closeModal])
+
+  // ── Create User submit ────────────────────────────────────────────────────────
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setCreateError(null)
@@ -134,14 +232,15 @@ export const UsersPage: React.FC = () => {
         role: newRole,
       })
 
-      // Clean reset
+      // Full reset on success
       setNewUsername('')
       setNewPassword('')
       setNewRole('AUDITOR')
+      setShowPassword(false) // P4: reset password visibility on success
       setShowCreateModal(false)
+      setConfirmingId(null) // P1: dismiss any stale confirm on list refresh
       setSuccessMessage(`User '${created.username}' created successfully as ${created.role}.`)
 
-      // Refresh list
       loadUsers()
     } catch (err) {
       setCreateError(err instanceof Error ? err.message : 'Failed to create user.')
@@ -150,6 +249,7 @@ export const UsersPage: React.FC = () => {
     }
   }
 
+  // ── Formatting helpers ────────────────────────────────────────────────────────
   const formatDateTime = (dateStr: string) => {
     if (!dateStr) return '—'
     try {
@@ -188,6 +288,7 @@ export const UsersPage: React.FC = () => {
     }
   }
 
+  // ── Render ────────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-6">
       {/* ── Page Header ──────────────────────────────────────────────────────── */}
@@ -221,6 +322,7 @@ export const UsersPage: React.FC = () => {
             id="create-user-btn"
             onClick={() => {
               setCreateError(null)
+              setConfirmingId(null) // P1: dismiss confirm when modal opens
               setShowCreateModal(true)
             }}
             className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-medium bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors shadow-xs cursor-pointer"
@@ -235,6 +337,7 @@ export const UsersPage: React.FC = () => {
       {actionError && (
         <div
           role="alert"
+          aria-live="assertive"
           className="flex items-start justify-between gap-3 p-3.5 rounded-lg bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 text-rose-700 dark:text-rose-400 text-xs"
         >
           <div className="flex items-center gap-2">
@@ -254,6 +357,7 @@ export const UsersPage: React.FC = () => {
       {successMessage && (
         <div
           role="status"
+          aria-live="polite"
           className="flex items-start justify-between gap-3 p-3.5 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 text-emerald-800 dark:text-emerald-400 text-xs"
         >
           <div className="flex items-center gap-2">
@@ -267,6 +371,80 @@ export const UsersPage: React.FC = () => {
           >
             <X className="w-3.5 h-3.5" />
           </button>
+        </div>
+      )}
+
+      {/* ── P3: Search + Filter Controls ─────────────────────────────────────── */}
+      {users.length > 0 && (
+        <div className="flex flex-col sm:flex-row gap-2">
+          {/* Search */}
+          <div className="relative flex-1">
+            <label htmlFor={searchId} className="sr-only">
+              Search users by username
+            </label>
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
+            <input
+              id={searchId}
+              type="search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search by username…"
+              className={cn(
+                'w-full pl-8 pr-3 py-2 rounded-lg text-xs border bg-white dark:bg-zinc-900/60',
+                'text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-600',
+                'border-zinc-200 dark:border-zinc-700/80',
+                'focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900 dark:focus-visible:ring-zinc-400'
+              )}
+            />
+          </div>
+
+          {/* Role filter */}
+          <select
+            value={roleFilter}
+            onChange={(e) => setRoleFilter(e.target.value as RoleFilter)}
+            aria-label="Filter by role"
+            className={cn(
+              'px-3 py-2 rounded-lg text-xs border bg-white dark:bg-zinc-900/60',
+              'text-zinc-900 dark:text-zinc-100',
+              'border-zinc-200 dark:border-zinc-700/80',
+              'focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900 dark:focus-visible:ring-zinc-400'
+            )}
+          >
+            <option value="ALL">All roles</option>
+            <option value="ADMIN">ADMIN</option>
+            <option value="AUDITOR">AUDITOR</option>
+            <option value="VIEWER">VIEWER</option>
+          </select>
+
+          {/* Status filter */}
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
+            aria-label="Filter by status"
+            className={cn(
+              'px-3 py-2 rounded-lg text-xs border bg-white dark:bg-zinc-900/60',
+              'text-zinc-900 dark:text-zinc-100',
+              'border-zinc-200 dark:border-zinc-700/80',
+              'focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900 dark:focus-visible:ring-zinc-400'
+            )}
+          >
+            <option value="ALL">All statuses</option>
+            <option value="enabled">Enabled</option>
+            <option value="disabled">Disabled</option>
+          </select>
+
+          {/* Clear filters button */}
+          {hasActiveFilters && (
+            <button
+              type="button"
+              onClick={clearFilters}
+              aria-label="Clear all filters"
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800/60 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-700/60 transition-colors"
+            >
+              <FilterX className="w-3.5 h-3.5" />
+              Clear
+            </button>
+          )}
         </div>
       )}
 
@@ -285,6 +463,7 @@ export const UsersPage: React.FC = () => {
           onRetry={loadUsers}
         />
       ) : users.length === 0 ? (
+        /* True empty — no users in system */
         <EmptyState
           icon={<Users className="w-6 h-6" />}
           title="No users found"
@@ -292,6 +471,26 @@ export const UsersPage: React.FC = () => {
           actionLabel="Create user"
           onAction={() => setShowCreateModal(true)}
         />
+      ) : filteredUsers.length === 0 ? (
+        /* Users exist but filters return nothing */
+        <div className="flex flex-col items-center justify-center gap-3 p-10 rounded-xl border border-dashed border-zinc-300 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-900/30 text-center">
+          <FilterX className="w-8 h-8 text-zinc-400 dark:text-zinc-500" />
+          <div>
+            <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+              No users match your filters
+            </p>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+              Try adjusting your search or filter criteria.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={clearFilters}
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium rounded-lg bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors"
+          >
+            Clear filters
+          </button>
+        </div>
       ) : (
         <div className="rounded-xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#12141a] shadow-xs overflow-hidden">
           <div className="overflow-x-auto">
@@ -302,16 +501,19 @@ export const UsersPage: React.FC = () => {
                   <th className="py-3 px-4 font-medium">Role</th>
                   <th className="py-3 px-4 font-medium">Status</th>
                   <th className="py-3 px-4 font-medium">Created</th>
+                  {/* P4: updatedAt — hidden on xs, visible sm+ */}
+                  <th className="hidden sm:table-cell py-3 px-4 font-medium">Last modified</th>
                   <th className="py-3 px-4 font-medium text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/60">
-                {users.map((u) => {
+                {filteredUsers.map((u) => {
                   const isCurrentAuthUser =
                     (currentUser?.id != null && currentUser.id === u.id) ||
                     (currentUser?.username != null &&
                       currentUser.username.toLowerCase() === u.username.toLowerCase())
                   const isUpdating = updatingId === u.id
+                  const isConfirming = confirmingId === u.id
 
                   return (
                     <tr
@@ -351,6 +553,11 @@ export const UsersPage: React.FC = () => {
                         {formatDateTime(u.createdAt)}
                       </td>
 
+                      {/* P4: updatedAt column */}
+                      <td className="hidden sm:table-cell py-3.5 px-4 text-zinc-500 dark:text-zinc-400">
+                        {formatDateTime(u.updatedAt)}
+                      </td>
+
                       <td className="py-3.5 px-4 text-right">
                         {isCurrentAuthUser ? (
                           <span
@@ -359,28 +566,55 @@ export const UsersPage: React.FC = () => {
                           >
                             Active Session
                           </span>
-                        ) : (
+                        ) : isUpdating ? (
+                          /* Loading spinner while API request is in flight */
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium border border-zinc-200 dark:border-zinc-800 text-zinc-400 opacity-60">
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                            <span>{u.enabled ? 'Disabling…' : 'Enabling…'}</span>
+                          </span>
+                        ) : isConfirming ? (
+                          /* P1: Inline confirm / cancel */
+                          <div className="inline-flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => handleConfirmDisable(u)}
+                              aria-label={`Confirm disable user ${u.username}`}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer border bg-rose-600 dark:bg-rose-500 text-white border-rose-600 dark:border-rose-500 hover:bg-rose-700 dark:hover:bg-rose-600"
+                            >
+                              <UserX className="w-3 h-3" />
+                              <span>Confirm disable</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleCancelConfirm}
+                              aria-label={`Cancel disable for user ${u.username}`}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/60"
+                            >
+                              <X className="w-3 h-3" />
+                              <span>Cancel</span>
+                            </button>
+                          </div>
+                        ) : u.enabled ? (
+                          /* Disable button — first click starts confirmation */
                           <button
                             type="button"
-                            disabled={isUpdating}
-                            onClick={() => handleToggleStatus(u)}
-                            aria-label={`${u.enabled ? 'Disable' : 'Enable'} user ${u.username}`}
-                            className={cn(
-                              'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer border',
-                              isUpdating && 'opacity-60 cursor-not-allowed',
-                              u.enabled
-                                ? 'text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 border-zinc-200 dark:border-zinc-800 hover:border-rose-200 dark:hover:border-rose-500/20'
-                                : 'text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 border-zinc-200 dark:border-zinc-800 hover:border-emerald-200 dark:hover:border-emerald-500/20'
-                            )}
+                            onClick={() => handleDisableClick(u)}
+                            aria-label={`Disable user ${u.username}`}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer border text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 border-zinc-200 dark:border-zinc-800 hover:border-rose-200 dark:hover:border-rose-500/20"
                           >
-                            {isUpdating ? (
-                              <Loader2 className="w-3 h-3 animate-spin" />
-                            ) : u.enabled ? (
-                              <UserX className="w-3 h-3" />
-                            ) : (
-                              <UserCheck className="w-3 h-3" />
-                            )}
-                            <span>{u.enabled ? 'Disable' : 'Enable'}</span>
+                            <UserX className="w-3 h-3" />
+                            <span>Disable</span>
+                          </button>
+                        ) : (
+                          /* Enable button — immediate, no confirmation */
+                          <button
+                            type="button"
+                            onClick={() => handleEnableUser(u)}
+                            aria-label={`Enable user ${u.username}`}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer border text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 border-zinc-200 dark:border-zinc-800 hover:border-emerald-200 dark:hover:border-emerald-500/20"
+                          >
+                            <UserCheck className="w-3 h-3" />
+                            <span>Enable</span>
                           </button>
                         )}
                       </td>
@@ -396,12 +630,18 @@ export const UsersPage: React.FC = () => {
       {/* ── Create User Modal ─────────────────────────────────────────────────── */}
       {showCreateModal && (
         <div
+          /* P2: Backdrop click closes the modal */
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs"
           role="dialog"
           aria-modal="true"
           aria-labelledby="create-user-modal-title"
+          onClick={closeModal}
         >
-          <div className="w-full max-w-md rounded-xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#12141a] shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+          {/* P2: Stop propagation so clicks inside the card don't bubble to backdrop */}
+          <div
+            className="w-full max-w-md rounded-xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#12141a] shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* Modal Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-100 dark:border-zinc-800/60">
               <div>
@@ -417,7 +657,7 @@ export const UsersPage: React.FC = () => {
               </div>
               <button
                 type="button"
-                onClick={() => setShowCreateModal(false)}
+                onClick={closeModal}
                 disabled={createSubmitting}
                 className="p-1 rounded-md text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition-colors"
                 aria-label="Close dialog"
@@ -431,6 +671,7 @@ export const UsersPage: React.FC = () => {
               {createError && (
                 <div
                   role="alert"
+                  aria-live="assertive"
                   className="flex items-start gap-2 p-3 rounded-lg bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 text-rose-700 dark:text-rose-400 text-xs"
                 >
                   <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
@@ -547,7 +788,7 @@ export const UsersPage: React.FC = () => {
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-zinc-100 dark:border-zinc-800/60">
                 <button
                   type="button"
-                  onClick={() => setShowCreateModal(false)}
+                  onClick={closeModal}
                   disabled={createSubmitting}
                   className="px-3 py-2 rounded-lg text-xs font-medium border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700/60 transition-colors cursor-pointer"
                 >
