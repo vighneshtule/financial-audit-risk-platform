@@ -132,4 +132,24 @@ public class UserRepository {
         String sql = "SELECT id, username, password_hash, role, enabled, created_at, updated_at FROM users ORDER BY id ASC";
         return jdbcTemplate.query(sql, userRowMapper);
     }
+
+    public int countEnabledAdmins() {
+        String sql = "SELECT COUNT(*) FROM users WHERE role = 'ADMIN' AND enabled = true";
+        Integer count = jdbcTemplate.queryForObject(sql, Integer.class);
+        return count != null ? count : 0;
+    }
+
+    public List<User> findAdminsForUpdate() {
+        String sql = "SELECT id, username, password_hash, role, enabled, created_at, updated_at FROM users WHERE role = 'ADMIN' ORDER BY id ASC FOR UPDATE";
+        return jdbcTemplate.query(sql, userRowMapper);
+    }
+
+    public void updateStatus(Long id, boolean enabled, LocalDateTime updatedAt) {
+        String sql = "UPDATE users SET enabled = ?, updated_at = ? WHERE id = ?";
+        jdbcTemplate.update(sql, enabled, Timestamp.valueOf(updatedAt != null ? updatedAt : LocalDateTime.now()), id);
+    }
+
+    public void updateStatus(Long id, boolean enabled) {
+        updateStatus(id, enabled, LocalDateTime.now());
+    }
 }
