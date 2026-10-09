@@ -10,6 +10,7 @@ import {
   User,
   X,
   LogOut,
+  Users,
 } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import { useRoles } from '../../hooks/useRoles'
@@ -46,6 +47,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     { label: 'Investigations', to: '/investigations', icon: SearchCode, roles: ['ADMIN', 'AUDITOR', 'VIEWER'] },
     { label: 'History', to: '/history', icon: History, roles: ['ADMIN', 'AUDITOR', 'VIEWER'] },
     { label: 'Import', to: '/import', icon: UploadCloud, roles: ['ADMIN', 'AUDITOR'] },
+    { label: 'Users', to: '/users', icon: Users, roles: ['ADMIN'] },
   ]
 
   const visibleNavItems = navItems.filter((item) => hasAnyRole(item.roles))

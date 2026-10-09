@@ -34,3 +34,23 @@ export interface LoginResponse {
   expiresIn: number
   user: AuthUser
 }
+
+/** Sprint 2B.6 – Admin User Management domain types */
+export interface ManagedUser {
+  id: number
+  username: string
+  role: UserRole
+  enabled: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateUserData {
+  username: string
+  password: string
+  role: UserRole
+}
+
+export interface UpdateUserStatusData {
+  enabled: boolean
+}

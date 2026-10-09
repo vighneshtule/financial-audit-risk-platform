@@ -38,6 +38,24 @@ public class GlobalExceptionHandler {
         return buildErrorResponse(HttpStatus.NOT_FOUND, "Not Found", exception.getMessage(), request.getRequestURI());
     }
 
+    @ExceptionHandler(UserNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleUserNotFound(
+            UserNotFoundException exception,
+            HttpServletRequest request) {
+
+        log.warn("User not found: {}", exception.getMessage());
+        return buildErrorResponse(HttpStatus.NOT_FOUND, "Not Found", exception.getMessage(), request.getRequestURI());
+    }
+
+    @ExceptionHandler(UserConflictException.class)
+    public ResponseEntity<Map<String, Object>> handleUserConflict(
+            UserConflictException exception,
+            HttpServletRequest request) {
+
+        log.warn("User conflict: {}", exception.getMessage());
+        return buildErrorResponse(HttpStatus.CONFLICT, "Conflict", exception.getMessage(), request.getRequestURI());
+    }
+
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, Object>> handleIllegalArgument(
             IllegalArgumentException exception,

@@ -21,6 +21,7 @@ const RiskIntelligencePage = lazy(() =>
   import('./pages/RiskIntelligence').then((m) => ({ default: m.RiskIntelligencePage }))
 )
 const LoginPage = lazy(() => import('./pages/Login').then((m) => ({ default: m.LoginPage })))
+const UsersPage = lazy(() => import('./pages/Users').then((m) => ({ default: m.UsersPage })))
 
 const PageLoader: React.FC = () => (
   <div className="p-6 space-y-4 max-w-7xl mx-auto">
@@ -67,6 +68,14 @@ export const App: React.FC = () => {
                     element={
                       <RoleGuard roles={['ADMIN', 'AUDITOR']}>
                         <ImportPage />
+                      </RoleGuard>
+                    }
+                  />
+                  <Route
+                    path="users"
+                    element={
+                      <RoleGuard roles={['ADMIN']}>
+                        <UsersPage />
                       </RoleGuard>
                     }
                   />
