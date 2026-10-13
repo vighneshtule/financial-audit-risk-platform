@@ -1,13 +1,13 @@
 name: AUREX CI Pipeline
 
-on:
+"on":
   push:
-    branches: [ main, spring-boot-api ]
+    branches: [ main, spring-boot-api, 'feature/**' ]
   pull_request:
     branches: [ main, spring-boot-api ]
 
 jobs:
-    backend-test:
+  backend-test:
     name: Backend Build & Unit/Integration Tests
     runs-on: ubuntu-latest
 

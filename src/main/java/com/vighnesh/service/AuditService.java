@@ -40,10 +40,25 @@ public class AuditService {
         this.auditEventRepository = auditEventRepository;
     }
 
+
+
+    /**
+     * Records an audit decision using the authenticated principal as the actor.
+     * <p>
+     * The {@code actor} parameter MUST be sourced from the Spring Security
+     * context (i.e. {@code Principal.getName()}) by the caller and never from
+     * the client request body. This guarantees audit-trail integrity: the stored
+     * {@code decided_by} always reflects the verified authenticated identity.
+     *
+     * @param transactionId the transaction being audited
+     * @param request       the decision payload (decision type, comment, analysisRunId)
+     * @param actor         the authenticated username — sourced from Principal, not from request
+     */
     @Transactional
     public AuditDecision recordDecision(
             String transactionId,
-            CreateAuditDecisionRequest request) throws Exception {
+            CreateAuditDecisionRequest request,
+            String actor) throws Exception {
 
         if (transactionId == null || transactionId.trim().isEmpty()) {
             throw new IllegalArgumentException("Transaction ID is required");
@@ -54,9 +69,11 @@ public class AuditService {
         if (request.getDecision() == null) {
             throw new IllegalArgumentException("Decision is required");
         }
-        if (request.getDecidedBy() == null || request.getDecidedBy().trim().isEmpty()) {
-            throw new IllegalArgumentException("decidedBy is required");
+        if (actor == null || actor.trim().isEmpty()) {
+            throw new IllegalArgumentException("Authenticated actor is required");
         }
+
+        String trimmedActor = actor.trim();
 
         // 1. Validate transaction exists
         Transaction transaction = transactionRepository.findById(transactionId);
@@ -82,13 +99,13 @@ public class AuditService {
             }
         }
 
-        // 3. Create audit decision
+        // 3. Create audit decision — actor comes from the authenticated principal, not the request
         long decisionId = auditDecisionRepository.save(
                 transactionId,
                 targetAnalysisRunId,
                 request.getDecision(),
                 request.getComment(),
-                request.getDecidedBy().trim()
+                trimmedActor
         );
 
         // 4. Create audit event for that decision
@@ -103,7 +120,7 @@ public class AuditService {
                 decisionId,
                 EVENT_TYPE_AUDIT_DECISION_CREATED,
                 eventDetails,
-                request.getDecidedBy().trim()
+                trimmedActor
         );
 
         // 5. Return the created decision

@@ -32,6 +32,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest(classes = FinancialAuditRiskApplication.class)
@@ -509,6 +510,41 @@ public class SecurityTests {
         }
 
         @Test
+        @DisplayName("P1/F-1. Disabled user JWT receives 401 on next authenticated request")
+        void disabledUserJwtIsRejectedAfterDisable() throws Exception {
+            // 1. Authenticate while enabled and obtain a valid JWT
+            LoginRequest loginReq = new LoginRequest("auditor_user", "AuditorPass123");
+            String loginRes = mockMvc.perform(post("/api/auth/login")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(loginReq)))
+                    .andExpect(status().isOk())
+                    .andReturn().getResponse().getContentAsString();
+            String auditorToken = objectMapper.readTree(loginRes).get("token").asText();
+
+            // 2. Verify token works while account is enabled
+            mockMvc.perform(get("/api/auth/me")
+                            .header("Authorization", "Bearer " + auditorToken))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.username", is("auditor_user")));
+
+            // 3. Admin disables user
+            User auditor = userService.findByUsername("auditor_user");
+            userService.updateUserStatus(auditor.getId(), false, "admin_user");
+
+            // 4. Token must now immediately receive 401 Unauthorized
+            mockMvc.perform(get("/api/auth/me")
+                            .header("Authorization", "Bearer " + auditorToken))
+                    .andExpect(status().isUnauthorized());
+
+            // 5. Admin re-enables user -> token should be accepted again
+            userService.updateUserStatus(auditor.getId(), true, "admin_user");
+            mockMvc.perform(get("/api/auth/me")
+                            .header("Authorization", "Bearer " + auditorToken))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.username", is("auditor_user")));
+        }
+
+        @Test
         @DisplayName("Sprint 2B.6 13-step End-to-End User Management Workflow")
         void fullUserManagementWorkflow() throws Exception {
             // 1. login as ADMIN
@@ -796,6 +832,34 @@ public class SecurityTests {
             if (!adminTwo.isEnabled()) {
                 userService.updateUserStatus(adminTwoId, true, "system");
             }
+        }
+    }
+
+    @Nested
+    @DisplayName("CORS Preflight Tests")
+    class CorsTests {
+
+        @Test
+        @DisplayName("OPTIONS preflight to /api/users/{id}/status succeeds with PATCH from configured frontend origin")
+        void testOptionsPreflightForUserStatusEndpointAllowedOrigin() throws Exception {
+            mockMvc.perform(options("/api/users/1/status")
+                            .header("Origin", "http://localhost:5173")
+                            .header("Access-Control-Request-Method", "PATCH")
+                            .header("Access-Control-Request-Headers", "Authorization,Content-Type"))
+                    .andExpect(status().isOk())
+                    .andExpect(header().string("Access-Control-Allow-Origin", "http://localhost:5173"))
+                    .andExpect(header().string("Access-Control-Allow-Methods", containsString("PATCH")))
+                    .andExpect(header().string("Access-Control-Allow-Methods", containsString("OPTIONS")));
+        }
+
+        @Test
+        @DisplayName("OPTIONS preflight from unauthorized origin is rejected (no Access-Control-Allow-Origin)")
+        void testOptionsPreflightFromUnconfiguredOriginRejected() throws Exception {
+            mockMvc.perform(options("/api/users/1/status")
+                            .header("Origin", "http://malicious-site.com")
+                            .header("Access-Control-Request-Method", "PATCH"))
+                    .andExpect(status().isForbidden())
+                    .andExpect(header().doesNotExist("Access-Control-Allow-Origin"));
         }
     }
 }

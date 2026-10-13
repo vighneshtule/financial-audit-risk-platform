@@ -100,40 +100,72 @@ class AuditControllerTest {
                 .andExpect(jsonPath("$.transactionId", is("TXN001")))
                 .andExpect(jsonPath("$.decision", is("FALSE_POSITIVE")))
                 .andExpect(jsonPath("$.comment", is("Known scheduled reconciliation")))
-                .andExpect(jsonPath("$.decidedBy", is("Auditor")))
+                .andExpect(jsonPath("$.decidedBy", is("admin")))
                 .andExpect(jsonPath("$.decidedAt", notNullValue()));
     }
 
     @Test
-    void testCreateDecisionValidationFailureMissingDecision() throws Exception {
-        String invalidJson = """
+    void testCreateDecisionIgnoresClientSuppliedDecidedBy() throws Exception {
+        // Even if client sends "CFO_Impersonator" or omits decidedBy entirely,
+        // the server records the authenticated principal ("admin")
+        String body = """
                 {
-                    "comment": "Missing decision field",
-                    "decidedBy": "Auditor"
+                    "analysisRunId": %d,
+                    "decision": "CONFIRMED_RISK",
+                    "comment": "Spoofed decidedBy",
+                    "decidedBy": "CFO_Impersonator"
                 }
-                """;
+                """.formatted(sampleAnalysisRunId);
 
         mockMvc.perform(post("/api/risk/transactions/TXN001/audit/decisions")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(invalidJson))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.status", is(400)));
+                        .content(body))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.decidedBy", is("admin")));
     }
 
     @Test
-    void testCreateDecisionValidationFailureMissingDecidedBy() throws Exception {
-        String invalidJson = """
-                {
-                    "decision": "CONFIRMED_RISK",
-                    "comment": "Missing decidedBy field"
-                }
-                """;
+    void testCreateDecisionFailsClosedWhenPrincipalAbsent() throws Exception {
+        CreateAuditDecisionRequest req = new CreateAuditDecisionRequest(
+                sampleAnalysisRunId,
+                AuditDecisionType.CONFIRMED_RISK,
+                "Attempt with unauthenticated context",
+                "Auditor"
+        );
 
+        // Perform request explicitly without mock user/principal authentication
+        mockMvc.perform(post("/api/risk/transactions/TXN001/audit/decisions")
+                        .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.anonymous())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void testCreateDecisionRecordsAuthenticatedUsernameInDecisionAndEvent() throws Exception {
+        CreateAuditDecisionRequest req = new CreateAuditDecisionRequest(
+                sampleAnalysisRunId,
+                AuditDecisionType.CONFIRMED_RISK,
+                "Integrity test for actor persistence",
+                "AttackerSuppliedName"
+        );
+
+        // Authenticated user is "admin"
         mockMvc.perform(post("/api/risk/transactions/TXN001/audit/decisions")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(invalidJson))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.status", is(400)));
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.decidedBy", is("admin")));
+
+        // Check latest decision
+        mockMvc.perform(get("/api/risk/transactions/TXN001/audit/decision"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.decidedBy", is("admin")));
+
+        // Check audit event
+        mockMvc.perform(get("/api/risk/transactions/TXN001/audit/events"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].actor", is("admin")));
     }
 
     @Test
@@ -182,15 +214,15 @@ class AuditControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(2)))
                 .andExpect(jsonPath("$[0].decision", is("CONFIRMED_RISK")))
-                .andExpect(jsonPath("$[0].decidedBy", is("LeadAuditor")))
+                .andExpect(jsonPath("$[0].decidedBy", is("admin")))
                 .andExpect(jsonPath("$[1].decision", is("REQUIRES_INVESTIGATION")))
-                .andExpect(jsonPath("$[1].decidedBy", is("JuniorAuditor")));
+                .andExpect(jsonPath("$[1].decidedBy", is("admin")));
 
         // 3. GET /decision -> returns latest decision
         mockMvc.perform(get("/api/risk/transactions/TXN001/audit/decision"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.decision", is("CONFIRMED_RISK")))
-                .andExpect(jsonPath("$.decidedBy", is("LeadAuditor")))
+                .andExpect(jsonPath("$.decidedBy", is("admin")))
                 .andExpect(jsonPath("$.comment", is("Final confirmed risk")));
 
         // 4. GET /events -> returns 2 audit events
