@@ -1,9 +1,18 @@
 package model;
 
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
+/**
+ * Request body for creating an audit decision.
+ *
+ * <p><strong>Security note:</strong> The {@code decidedBy} field in this DTO is
+ * retained for API backward compatibility (callers may still send it) but it is
+ * intentionally <em>ignored</em> when recording the audit actor.
+ * The actual actor is always derived from the authenticated Spring Security
+ * {@link java.security.Principal} in {@link com.vighnesh.controller.AuditController},
+ * preventing clients from forging the audit trail.
+ */
 public class CreateAuditDecisionRequest {
 
     private Long analysisRunId;
@@ -14,7 +23,10 @@ public class CreateAuditDecisionRequest {
     @Size(max = 2000, message = "Comment must not exceed 2000 characters")
     private String comment;
 
-    @NotBlank(message = "decidedBy is required")
+    /**
+     * Retained for API compatibility. This value is NOT used as the audit actor;
+     * the authenticated principal name is used instead.
+     */
     @Size(max = 100, message = "decidedBy must not exceed 100 characters")
     private String decidedBy;
 

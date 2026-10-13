@@ -101,10 +101,10 @@ class AuditServiceTest {
                 sampleAnalysisRunId,
                 AuditDecisionType.CONFIRMED_RISK,
                 "Confirmed vendor kickback suspicion",
-                "SeniorAuditor"
+                "IgnoredClientActor"
         );
 
-        AuditDecision decision = auditService.recordDecision("TXN001", req);
+        AuditDecision decision = auditService.recordDecision("TXN001", req, "SeniorAuditor");
         assertNotNull(decision);
         assertTrue(decision.getId() > 0);
         assertEquals("TXN001", decision.getTransactionId());
@@ -121,10 +121,10 @@ class AuditServiceTest {
                 sampleAnalysisRunId,
                 AuditDecisionType.FALSE_POSITIVE,
                 "Legitimate quarterly bulk purchase",
-                "ComplianceOfficer"
+                "IgnoredClientActor"
         );
 
-        AuditDecision decision = auditService.recordDecision("TXN001", req);
+        AuditDecision decision = auditService.recordDecision("TXN001", req, "ComplianceOfficer");
         assertNotNull(decision);
         assertEquals(AuditDecisionType.FALSE_POSITIVE, decision.getDecision());
         assertEquals("ComplianceOfficer", decision.getDecidedBy());
@@ -136,12 +136,13 @@ class AuditServiceTest {
                 sampleAnalysisRunId,
                 AuditDecisionType.REQUIRES_INVESTIGATION,
                 "Needs invoice verification",
-                "InternalAuditor"
+                "IgnoredClientActor"
         );
 
-        AuditDecision decision = auditService.recordDecision("TXN001", req);
+        AuditDecision decision = auditService.recordDecision("TXN001", req, "InternalAuditor");
         assertNotNull(decision);
         assertEquals(AuditDecisionType.REQUIRES_INVESTIGATION, decision.getDecision());
+        assertEquals("InternalAuditor", decision.getDecidedBy());
     }
 
     @Test
@@ -150,12 +151,13 @@ class AuditServiceTest {
                 sampleAnalysisRunId,
                 AuditDecisionType.ESCALATED,
                 "Escalating to Legal and CFO",
-                "AuditLead"
+                "IgnoredClientActor"
         );
 
-        AuditDecision decision = auditService.recordDecision("TXN001", req);
+        AuditDecision decision = auditService.recordDecision("TXN001", req, "AuditLead");
         assertNotNull(decision);
         assertEquals(AuditDecisionType.ESCALATED, decision.getDecision());
+        assertEquals("AuditLead", decision.getDecidedBy());
     }
 
     @Test
@@ -169,25 +171,25 @@ class AuditServiceTest {
 
         IllegalArgumentException ex = assertThrows(
                 IllegalArgumentException.class,
-                () -> auditService.recordDecision("TXN001", req)
+                () -> auditService.recordDecision("TXN001", req, "Auditor")
         );
         assertTrue(ex.getMessage().contains("Decision is required"));
     }
 
     @Test
-    void testRejectMissingDecidedBy() {
+    void testRejectMissingActor() {
         CreateAuditDecisionRequest req = new CreateAuditDecisionRequest(
                 sampleAnalysisRunId,
                 AuditDecisionType.CONFIRMED_RISK,
                 "Comment without actor",
-                "   "
+                "Auditor"
         );
 
         IllegalArgumentException ex = assertThrows(
                 IllegalArgumentException.class,
-                () -> auditService.recordDecision("TXN001", req)
+                () -> auditService.recordDecision("TXN001", req, "   ")
         );
-        assertTrue(ex.getMessage().contains("decidedBy is required"));
+        assertTrue(ex.getMessage().contains("Authenticated actor is required"));
     }
 
     @Test
@@ -201,7 +203,7 @@ class AuditServiceTest {
 
         assertThrows(
                 TransactionNotFoundException.class,
-                () -> auditService.recordDecision("NON_EXISTENT_TXN", req)
+                () -> auditService.recordDecision("NON_EXISTENT_TXN", req, "Auditor")
         );
     }
 
@@ -219,7 +221,7 @@ class AuditServiceTest {
 
         assertThrows(
                 AnalysisRunNotFoundException.class,
-                () -> auditService.recordDecision("TXN001", req)
+                () -> auditService.recordDecision("TXN001", req, "Auditor")
         );
     }
 
@@ -229,17 +231,17 @@ class AuditServiceTest {
                 sampleAnalysisRunId,
                 AuditDecisionType.REQUIRES_INVESTIGATION,
                 "Initial triage",
-                "Auditor1"
+                "Ignored"
         );
-        AuditDecision d1 = auditService.recordDecision("TXN001", req1);
+        AuditDecision d1 = auditService.recordDecision("TXN001", req1, "Auditor1");
 
         CreateAuditDecisionRequest req2 = new CreateAuditDecisionRequest(
                 sampleAnalysisRunId,
                 AuditDecisionType.CONFIRMED_RISK,
                 "Follow up confirmed anomaly",
-                "Auditor2"
+                "Ignored"
         );
-        AuditDecision d2 = auditService.recordDecision("TXN001", req2);
+        AuditDecision d2 = auditService.recordDecision("TXN001", req2, "Auditor2");
 
         List<AuditDecision> history = auditService.getDecisionHistory("TXN001");
         assertEquals(2, history.size());
@@ -253,17 +255,17 @@ class AuditServiceTest {
                 sampleAnalysisRunId,
                 AuditDecisionType.REQUIRES_INVESTIGATION,
                 "First",
-                "Auditor1"
+                "Ignored"
         );
-        auditService.recordDecision("TXN001", req1);
+        auditService.recordDecision("TXN001", req1, "Auditor1");
 
         CreateAuditDecisionRequest req2 = new CreateAuditDecisionRequest(
                 sampleAnalysisRunId,
                 AuditDecisionType.FALSE_POSITIVE,
                 "Second (Latest)",
-                "Auditor2"
+                "Ignored"
         );
-        AuditDecision d2 = auditService.recordDecision("TXN001", req2);
+        AuditDecision d2 = auditService.recordDecision("TXN001", req2, "Auditor2");
 
         AuditDecision latest = auditService.getLatestDecision("TXN001");
         assertNotNull(latest);
@@ -278,9 +280,9 @@ class AuditServiceTest {
                 sampleAnalysisRunId,
                 AuditDecisionType.CONFIRMED_RISK,
                 "Testing audit event creation",
-                "AuditorLead"
+                "Ignored"
         );
-        AuditDecision decision = auditService.recordDecision("TXN001", req);
+        AuditDecision decision = auditService.recordDecision("TXN001", req, "AuditorLead");
 
         List<AuditEvent> events = auditService.getAuditEventHistory("TXN001");
         assertEquals(1, events.size());
@@ -297,10 +299,10 @@ class AuditServiceTest {
     @Test
     void testAuditEventHistoryIsNewestFirst() throws Exception {
         auditService.recordDecision("TXN001", new CreateAuditDecisionRequest(
-                sampleAnalysisRunId, AuditDecisionType.REQUIRES_INVESTIGATION, "First event", "Auditor1"));
+                sampleAnalysisRunId, AuditDecisionType.REQUIRES_INVESTIGATION, "First event", "Ignored"), "Auditor1");
 
         auditService.recordDecision("TXN001", new CreateAuditDecisionRequest(
-                sampleAnalysisRunId, AuditDecisionType.ESCALATED, "Second event", "Auditor2"));
+                sampleAnalysisRunId, AuditDecisionType.ESCALATED, "Second event", "Ignored"), "Auditor2");
 
         List<AuditEvent> events = auditService.getAuditEventHistory("TXN001");
         assertEquals(2, events.size());
@@ -337,13 +339,13 @@ class AuditServiceTest {
                 sampleAnalysisRunId,
                 AuditDecisionType.CONFIRMED_RISK,
                 "Should rollback",
-                "AuditorRollback"
+                "Ignored"
         );
 
         assertThrows(RuntimeException.class, () ->
                 txTemplate.execute(status -> {
                     try {
-                        return serviceWithFault.recordDecision("TXN001", req);
+                        return serviceWithFault.recordDecision("TXN001", req, "AuditorRollback");
                     } catch (RuntimeException e) {
                         throw e;
                     } catch (Exception e) {
@@ -370,9 +372,9 @@ class AuditServiceTest {
                 latestRun.getId(),
                 AuditDecisionType.FALSE_POSITIVE,
                 "Auditor marks false positive",
-                "SeniorAuditor"
+                "Ignored"
         );
-        auditService.recordDecision("TXN001", req);
+        auditService.recordDecision("TXN001", req, "SeniorAuditor");
 
         // Verify risk analysis run remains identical
         RiskAnalysisRun runAfter = riskAnalysisRunRepository.findLatestByTransactionId("TXN001");
