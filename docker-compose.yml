@@ -2,45 +2,80 @@ services:
   postgres:
     image: postgres:16-alpine
     container_name: aurex-postgres
+    restart: unless-stopped
     environment:
-      POSTGRES_DB: financial_audit
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgrespassword
-    ports:
-      - "5432:5432"
+      POSTGRES_DB: ${POSTGRES_DB:-financial_audit}
+      POSTGRES_USER: ${DB_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set in your environment or .env file}
+    # PostgreSQL port 5432 is restricted to internal Docker network by default.
+    # To expose for local debugging only, uncomment:
+    # ports:
+    #   - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./src/main/resources/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d financial_audit"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-postgres} -d $${POSTGRES_DB:-financial_audit}"]
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - aurex-network
 
   backend:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: aurex-backend
-    ports:
-      - "8080:8080"
+    restart: unless-stopped
     environment:
-      DB_URL: jdbc:postgresql://postgres:5432/financial_audit
-      DB_USERNAME: postgres
-      DB_PASSWORD: postgrespassword
-      CORS_ALLOWED_ORIGINS: http://localhost:5173,http://localhost:3000
-      # Profile defaults to 'dev' for local Docker runs.
-      # Override with SPRING_PROFILES_ACTIVE=prod for production deployments.
-      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
-      ENABLE_SWAGGER: "true"
+      PORT: 8080
+      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-financial_audit}
+      DB_USERNAME: ${DB_USERNAME:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set in your environment or .env file}
+      # CORS allowed origins for frontend; include the frontend container host
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost,http://localhost:80,http://localhost:5173,http://localhost:3000}
+      # Profile defaults to prod in Docker Compose production deployment
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
+      ENABLE_SWAGGER: ${ENABLE_SWAGGER:-false}
       # JWT_SECRET is required — Compose will fail immediately if not set in the host environment or .env file.
       # Generate with: openssl rand -base64 64
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set to a secure value of at least 32 characters}
-      # Admin seeding is disabled by default. Never enable in production.
+      # Initial production admin provisioning (first-run only when user table is empty)
+      AUREX_PROD_INITIAL_ADMIN_PASSWORD: ${AUREX_PROD_INITIAL_ADMIN_PASSWORD:-}
+      AUREX_PROD_INITIAL_ADMIN_USERNAME: ${AUREX_PROD_INITIAL_ADMIN_USERNAME:-admin}
+      # Development seeding is disabled by default. Never enable in production.
       AUREX_SEED_ADMIN_ENABLED: ${AUREX_SEED_ADMIN_ENABLED:-false}
-      # Only needed when AUREX_SEED_ADMIN_ENABLED=true. No default; startup fails if seeding is enabled without it.
       AUREX_DEV_ADMIN_PASSWORD: ${AUREX_DEV_ADMIN_PASSWORD:-}
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:8080/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - aurex-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: aurex-frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-80}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - aurex-network
+
+networks:
+  aurex-network:
+    driver: bridge
 
 volumes:
   postgres_data:
