@@ -84,10 +84,42 @@ The frontend application will start at `http://localhost:5173`.
 
 ## 🐳 Docker Deployment
 
-To launch the full stack (Spring Boot Backend + PostgreSQL Database) using Docker Compose:
-```bash
-docker-compose up --build
-```
+To launch the full stack (React Frontend SPA on Nginx, Spring Boot Backend, and PostgreSQL Database) using Docker Compose:
+
+1. **Configure Environment File**:
+   Copy `.env.example` to `.env` and provide your secrets:
+   ```bash
+   cp .env.example .env
+   ```
+   Generate a secure `JWT_SECRET` (minimum 32 characters) and strong `DB_PASSWORD`:
+   ```bash
+   # Linux/macOS/Git Bash:
+   openssl rand -base64 64
+   ```
+
+2. **First-Run Production Admin Provisioning (Optional)**:
+   If launching a fresh production database, set `AUREX_PROD_INITIAL_ADMIN_PASSWORD` (min 12 characters) in `.env`.
+   The application will automatically create an initial `admin` account on first boot. Once logged in, remove this variable from `.env`.
+
+3. **Start the Stack**:
+   ```bash
+   docker compose up -d --build
+   ```
+   - **Frontend UI**: `http://localhost` (or configured `FRONTEND_PORT`)
+   - **Backend API**: Proxied via Nginx at `http://localhost/api` (direct container port `8080` kept internal)
+   - **Database**: PostgreSQL on internal Docker network (port `5432` not exposed publicly)
+
+4. **Verify Health**:
+   ```bash
+   curl http://localhost/api/health
+   # Expected: {"status":"UP","database":"UP"}
+   ```
+
+5. **Stop the Stack**:
+   ```bash
+   docker compose down
+   # Note: Do NOT use -v unless you explicitly intend to destroy database volumes.
+   ```
 
 ---
 
@@ -98,9 +130,10 @@ docker-compose up --build
 mvn clean test
 ```
 
-### Frontend Typecheck & Build Verification
+### Frontend Typecheck, Lint & Unit Tests
 ```bash
 cd frontend
+npm test
 npm run build
 ```
 
@@ -110,17 +143,21 @@ npm run build
 
 | Variable | Default Value | Description |
 |---|---|---|
-| `PORT` | `8080` | Spring Boot HTTP Server Port |
-| `DB_URL` | `jdbc:postgresql://localhost:5432/financial_audit` | PostgreSQL JDBC Connection String |
+| `FRONTEND_PORT` | `80` | Public HTTP port mapped to Frontend Nginx |
+| `PORT` | `8080` | Spring Boot internal HTTP Server Port |
+| `POSTGRES_DB` | `financial_audit` | PostgreSQL Database Name |
 | `DB_USERNAME` | `postgres` | Database Username |
-| `DB_PASSWORD` | `postgres` | Database Password |
-| `JWT_SECRET` | *(Required in prod, min 32 chars)* | HMAC-SHA signing secret for JWT tokens |
-| `JWT_EXPIRATION` | `86400` | JWT token validity window in seconds |
-| `AUREX_SEED_ADMIN_ENABLED` | `false` | Enable initial admin seeding (dev only, disabled in prod) |
-| `AUREX_DEV_ADMIN_PASSWORD` | *(No default)* | Required when `AUREX_SEED_ADMIN_ENABLED=true` to create local dev admin |
-| `CORS_ALLOWED_ORIGINS` | `http://localhost:5173,http://localhost:3000` | Allowed CORS Frontend Origins |
-| `SPRING_PROFILES_ACTIVE` | `default` | Active Profile (`default` or `prod`) |
-| `VITE_API_BASE_URL` | `http://localhost:8080/api` | Base API URL for Frontend |
+| `DB_PASSWORD` | *(Required in Compose)* | Database Password |
+| `JWT_SECRET` | *(Required, min 32 chars)* | HMAC-SHA signing secret for JWT tokens |
+| `JWT_EXPIRATION` | `86400` | JWT token validity window in seconds (24h) |
+| `AUREX_PROD_INITIAL_ADMIN_PASSWORD` | *(None)* | Password for first-run production admin creation (min 12 chars) |
+| `AUREX_PROD_INITIAL_ADMIN_USERNAME` | `admin` | Username for first-run production admin |
+| `AUREX_SEED_ADMIN_ENABLED` | `false` | Enable dev admin seeding (dev profile only; blocked in prod) |
+| `AUREX_DEV_ADMIN_PASSWORD` | *(No default)* | Required only when `AUREX_SEED_ADMIN_ENABLED=true` in dev profile |
+| `CORS_ALLOWED_ORIGINS` | `http://localhost,http://localhost:80` | Allowed CORS Frontend Origins |
+| `SPRING_PROFILES_ACTIVE` | `prod` (in Compose) | Active Spring profile (`dev` or `prod`) |
+| `ENABLE_SWAGGER` | `false` (in prod) | Enable Swagger UI in production / staging |
+| `VITE_API_BASE_URL` | `/api` | Base API URL baked into frontend build |
 
 ---
 

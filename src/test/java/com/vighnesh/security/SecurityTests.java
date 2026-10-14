@@ -377,6 +377,136 @@ public class SecurityTests {
     }
 
     @Nested
+    @DisplayName("G2. Production Admin Bootstrap Hardening Tests (Sprint 2C.1)")
+    class ProdAdminBootstrapTests {
+
+        @Test
+        @DisplayName("1. Fresh production database creates the intended ADMIN user")
+        void freshProductionDatabaseCreatesAdmin() {
+            // Clear users to simulate fresh database
+            jdbcTemplate.execute("DELETE FROM users");
+            assertEquals(0, userService.getUserCount());
+
+            org.springframework.mock.env.MockEnvironment env = new org.springframework.mock.env.MockEnvironment();
+            env.setActiveProfiles("prod");
+            env.setProperty("aurex.security.prod-admin.password", "SuperSecureProdPassword123!");
+            env.setProperty("aurex.security.prod-admin.username", "prod_admin");
+
+            ProdAdminBootstrap bootstrap = new ProdAdminBootstrap(userService, env);
+            bootstrap.run();
+
+            User created = userService.findByUsername("prod_admin");
+            assertNotNull(created);
+            assertEquals("prod_admin", created.getUsername());
+            assertEquals(UserRole.ADMIN, created.getRole());
+            assertTrue(created.isEnabled());
+            assertNotNull(created.getPasswordHash());
+            assertTrue(passwordEncoder.matches("SuperSecureProdPassword123!", created.getPasswordHash()));
+        }
+
+        @Test
+        @DisplayName("2. Existing users prevent production bootstrap")
+        void existingUsersPreventProductionBootstrap() {
+            // Ensure at least one user exists
+            assertTrue(userService.getUserCount() > 0);
+            int countBefore = userService.getUserCount();
+
+            org.springframework.mock.env.MockEnvironment env = new org.springframework.mock.env.MockEnvironment();
+            env.setActiveProfiles("prod");
+            env.setProperty("aurex.security.prod-admin.password", "AnotherSecurePassword123!");
+            env.setProperty("aurex.security.prod-admin.username", "new_admin_attempt");
+
+            ProdAdminBootstrap bootstrap = new ProdAdminBootstrap(userService, env);
+            bootstrap.run();
+
+            assertEquals(countBefore, userService.getUserCount());
+            assertNull(userService.findByUsername("new_admin_attempt"));
+        }
+
+        @Test
+        @DisplayName("3. Repeated bootstrap attempts do not reset password or duplicate admin")
+        void repeatedBootstrapAttemptsDoNotResetPassword() {
+            jdbcTemplate.execute("DELETE FROM users");
+
+            org.springframework.mock.env.MockEnvironment env = new org.springframework.mock.env.MockEnvironment();
+            env.setActiveProfiles("prod");
+            env.setProperty("aurex.security.prod-admin.password", "FirstPassword123!");
+            env.setProperty("aurex.security.prod-admin.username", "admin");
+
+            ProdAdminBootstrap bootstrap1 = new ProdAdminBootstrap(userService, env);
+            bootstrap1.run();
+
+            User admin = userService.findByUsername("admin");
+            assertNotNull(admin);
+            String firstHash = admin.getPasswordHash();
+
+            // Run a second time with a different password
+            org.springframework.mock.env.MockEnvironment env2 = new org.springframework.mock.env.MockEnvironment();
+            env2.setActiveProfiles("prod");
+            env2.setProperty("aurex.security.prod-admin.password", "SecondPasswordAttempt123!");
+            env2.setProperty("aurex.security.prod-admin.username", "admin");
+
+            ProdAdminBootstrap bootstrap2 = new ProdAdminBootstrap(userService, env2);
+            bootstrap2.run();
+
+            User adminAfter = userService.findByUsername("admin");
+            assertEquals(firstHash, adminAfter.getPasswordHash(), "Password hash must NOT be modified by repeat bootstrap");
+            assertTrue(passwordEncoder.matches("FirstPassword123!", adminAfter.getPasswordHash()));
+            assertFalse(passwordEncoder.matches("SecondPasswordAttempt123!", adminAfter.getPasswordHash()));
+            assertEquals(1, userService.getUserCount());
+        }
+
+        @Test
+        @DisplayName("4. Missing or short password fails clearly when bootstrap is attempted")
+        void invalidPasswordFailsClearly() {
+            org.springframework.mock.env.MockEnvironment env = new org.springframework.mock.env.MockEnvironment();
+            env.setActiveProfiles("prod");
+            env.setProperty("aurex.security.prod-admin.password", "short"); // < 12 chars
+
+            ProdAdminBootstrap bootstrap = new ProdAdminBootstrap(userService, env);
+            IllegalStateException ex = assertThrows(IllegalStateException.class, bootstrap::run);
+            assertTrue(ex.getMessage().contains("must be at least 12 characters long"));
+        }
+
+        @Test
+        @DisplayName("5. Unset bootstrap password does nothing silently")
+        void unsetBootstrapPasswordDoesNothing() {
+            org.springframework.mock.env.MockEnvironment env = new org.springframework.mock.env.MockEnvironment();
+            env.setActiveProfiles("prod");
+
+            ProdAdminBootstrap bootstrap = new ProdAdminBootstrap(userService, env);
+            assertDoesNotThrow((org.junit.jupiter.api.function.Executable) bootstrap::run);
+        }
+
+        @Test
+        @DisplayName("6. Non-prod profiles (dev/test) never trigger bootstrap even if env password is set")
+        void nonProdProfilesNeverTriggerBootstrap() {
+            jdbcTemplate.execute("DELETE FROM users");
+            assertEquals(0, userService.getUserCount());
+
+            // Dev profile with password set
+            org.springframework.mock.env.MockEnvironment devEnv = new org.springframework.mock.env.MockEnvironment();
+            devEnv.setActiveProfiles("dev");
+            devEnv.setProperty("aurex.security.prod-admin.password", "SuperSecureProdPassword123!");
+            devEnv.setProperty("aurex.security.prod-admin.username", "dev_accidental_admin");
+
+            ProdAdminBootstrap devBootstrap = new ProdAdminBootstrap(userService, devEnv);
+            devBootstrap.run();
+            assertEquals(0, userService.getUserCount(), "Dev profile must not run ProdAdminBootstrap");
+
+            // Test profile with password set
+            org.springframework.mock.env.MockEnvironment testEnv = new org.springframework.mock.env.MockEnvironment();
+            testEnv.setActiveProfiles("test");
+            testEnv.setProperty("aurex.security.prod-admin.password", "SuperSecureProdPassword123!");
+            testEnv.setProperty("aurex.security.prod-admin.username", "test_accidental_admin");
+
+            ProdAdminBootstrap testBootstrap = new ProdAdminBootstrap(userService, testEnv);
+            testBootstrap.run();
+            assertEquals(0, userService.getUserCount(), "Test profile must not run ProdAdminBootstrap");
+        }
+    }
+
+    @Nested
     @DisplayName("H. Sprint 2B.6 Admin User Management Tests")
     class AdminUserManagementTests {
 
