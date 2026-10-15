@@ -1,0 +1,44 @@
+%% AUREX — User Roles & Permissions Boundary Diagram
+%% Source: docs/project-submission/diagrams/user-roles.mmd
+
+flowchart TD
+    subgraph Roles ["AUREX User Roles (Spring Security Authorities)"]
+        ADMIN["ROLE_ADMIN<br/>(Full Administrative Privilege)"]
+        AUDITOR["ROLE_AUDITOR<br/>(Audit & Ingestion Specialist)"]
+        VIEWER["ROLE_VIEWER<br/>(Read-Only Compliance Observer)"]
+    end
+
+    subgraph Capabilities ["System Capability Tiers"]
+        subgraph AdminOnlyTier ["Admin-Only Privileges (HTTP 403 for others)"]
+            M1["List Users (GET /api/users)"]
+            M2["Create New User (POST /api/users)"]
+            M3["Enable/Disable User (PATCH /api/users/{id}/status)"]
+        end
+
+        subgraph OperationalTier ["Operational Mutation (ADMIN & AUDITOR)"]
+            O1["Import Transactions CSV (POST /api/transactions/import)"]
+            O2["Run Live & Batch Analysis (POST /api/risk/analyze/**)"]
+            O3["Record Audit Decision (POST /api/risk/.../audit/decisions)"]
+        end
+
+        subgraph ReadOnlyTier ["Read-Only Analytical Access (All Authenticated)"]
+            R1["View Ingested Transactions (GET /api/transactions)"]
+            R2["View Risk Reports & Findings (GET /api/risk/transactions/{id})"]
+            R3["View Relationship Evidence Graph (GET .../context)"]
+            R4["View Historical Run Comparisons (GET .../history)"]
+            R5["View Decision & Event Audit Trail (GET .../audit/...)"]
+            R6["View Risk Intelligence Dashboard (GET .../intelligence/summary)"]
+        end
+    end
+
+    ADMIN ==> AdminOnlyTier
+    ADMIN ==> OperationalTier
+    ADMIN ==> ReadOnlyTier
+
+    AUDITOR ==> OperationalTier
+    AUDITOR ==> ReadOnlyTier
+    AUDITOR -.->|FORBIDDEN 403| AdminOnlyTier
+
+    VIEWER ==> ReadOnlyTier
+    VIEWER -.->|FORBIDDEN 403| OperationalTier
+    VIEWER -.->|FORBIDDEN 403| AdminOnlyTier

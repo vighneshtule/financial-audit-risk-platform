@@ -1,0 +1,69 @@
+%% AUREX — Sequence Diagram: Deterministic Transaction Risk Analysis & Persistence
+%% Source: docs/project-submission/diagrams/sequence-risk-analysis.mmd
+
+sequenceDiagram
+    autonumber
+    actor Auditor as Auditor (Browser)
+    participant Ctrl as RiskController
+    participant Svc as RiskAnalysisService
+    participant Factory as RiskEngineFactory
+    participant Engine as RiskEngine
+    participant Calc as RiskScoreCalculator
+    participant TxnRepo as TransactionRepository
+    participant RunRepo as RiskAnalysisRunRepository
+    participant FindingRepo as RiskFindingRepository
+    participant DB as PostgreSQL Database
+
+    Auditor->>Ctrl: POST /api/risk/analyze/{id} (Bearer JWT)
+    Note over Ctrl: Security verifies ROLE_ADMIN or ROLE_AUDITOR
+    Ctrl->>Svc: analyzeAndPersistTransaction(transactionId)
+    
+    rect rgb(240, 248, 255)
+        Note over Svc, DB: @Transactional Boundary
+        Svc->>TxnRepo: findAll()
+        TxnRepo->>DB: SELECT transaction_id, vendor, employee, amount, transaction_time, category FROM transactions
+        DB-->>TxnRepo: List<Transaction>
+        TxnRepo-->>Svc: List<Transaction>
+        
+        alt Target Transaction Not Found
+            Svc-->>Ctrl: throw TransactionNotFoundException
+            Ctrl-->>Auditor: 404 Not Found {"error": "Transaction not found"}
+        else Target Transaction Found
+            Svc->>Factory: create()
+            Factory-->>Svc: configured RiskEngine (6 Rules injected)
+            
+            Svc->>Engine: analyze(targetTxn, allTransactions)
+            
+            loop Evaluate Single-Transaction Policies
+                Engine->>Engine: HighAmountRule.evaluate(targetTxn)
+                Engine->>Engine: UnusualTimeRule.evaluate(targetTxn)
+                Engine->>Engine: RoundAmountRule.evaluate(targetTxn)
+            end
+            
+            loop Evaluate Dataset-Aware Policies
+                Engine->>Engine: DuplicateTransactionRule.evaluate(targetTxn, allTransactions)
+                Engine->>Engine: TransactionVelocityRule.evaluate(targetTxn, allTransactions)
+                Engine->>Engine: VendorConcentrationRule.evaluate(targetTxn, allTransactions)
+            end
+            
+            Engine->>Calc: calculateScore(findings)
+            Calc-->>Engine: capped total score (0 - 100)
+            Engine->>Calc: determineSeverity(totalScore)
+            Calc-->>Engine: RiskSeverity (LOW, MEDIUM, HIGH, CRITICAL)
+            Engine-->>Svc: RiskReport (score, severity, List<RiskFinding>)
+            
+            Svc->>RunRepo: save(transactionId, score, severity)
+            RunRepo->>DB: INSERT INTO risk_analysis_runs (transaction_id, risk_score, risk_level) VALUES (?, ?, ?) RETURNING id
+            DB-->>RunRepo: generated analysis_run_id (e.g. 1042)
+            RunRepo-->>Svc: 1042
+            
+            loop For Each Triggered Finding
+                Svc->>FindingRepo: save(1042, transactionId, finding)
+                FindingRepo->>DB: INSERT INTO risk_findings (analysis_run_id, transaction_id, risk_type, score, severity, explanation) VALUES (?, ?, ?, ?, ?, ?)
+                DB-->>FindingRepo: Success
+            end
+            
+            Svc-->>Ctrl: RiskReport
+        end
+    end
+    Ctrl-->>Auditor: 200 OK RiskReport {riskScore, riskLevel, findings: [...]}

@@ -1,0 +1,31 @@
+%% AUREX — End-to-End User Journey Diagram
+%% Source: docs/project-submission/diagrams/user-journey.mmd
+
+journey
+    title Auditor & Admin Journey Through AUREX Financial Audit Platform
+    section Authentication & Entry
+      Enter credentials on /login: 5: Admin, Auditor, Viewer
+      Receive JWT token & restore session: 5: Admin, Auditor, Viewer
+      Inspect role-guarded sidebar navigation: 5: Admin, Auditor, Viewer
+    section Admin User Administration
+      Open /users management view: 5: Admin
+      Create new auditor or viewer account: 4: Admin
+      Disable compromised account with lockout check: 5: Admin
+    section Transaction Data Ingestion
+      Navigate to /import workspace: 4: Admin, Auditor
+      Select and upload financial transactions CSV: 4: Admin, Auditor
+      Validate schema & commit batch atomically: 5: Backend
+    section Forensic Risk Analysis
+      Trigger batch evaluation (/api/risk/analyze-all): 5: Admin, Auditor
+      Review prioritized risk queue on /transactions: 5: Auditor, Viewer
+      Open forensic transaction workspace (/transactions/:id): 5: Auditor
+      Examine deterministic policy violation findings: 5: Auditor
+      Inspect relationship intelligence context (Vendor/Employee/Category): 5: Auditor
+    section Audit Decision & Event Logging
+      Select audit decision (CONFIRMED_RISK / FALSE_POSITIVE / etc.): 5: Auditor
+      Enter investigative findings comment: 4: Auditor
+      Submit decision; backend binds authenticated Principal: 5: Backend
+      Review immutable audit trail on /history: 5: Auditor, Viewer, Admin
+    section Executive Reporting
+      Review /intelligence multi-dimensional charts: 5: Viewer, Auditor, Admin
+      Analyze vendor & employee concentration anomalies: 5: Viewer, Auditor, Admin

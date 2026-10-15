@@ -1,0 +1,25 @@
+%% AUREX — DFD Level 0 (Context Diagram)
+%% Source: docs/project-submission/diagrams/dfd-context.mmd
+
+flowchart TD
+    %% External Entities (Terminators)
+    subgraph ExternalActors ["External Actors & Data Sources"]
+        ADMIN["Compliance Administrator"]
+        AUDITOR["Internal Auditor"]
+        VIEWER["Audit Viewer / Executive"]
+        CSV_SRC["ERP / Banking CSV Source"]
+    end
+
+    %% Central System Process
+    AUREX(("0<br/><b>AUREX Financial Audit Risk Platform</b>"))
+
+    %% Data Flows
+    CSV_SRC -->|"1. Financial Transaction Records (CSV)"| AUREX
+    ADMIN -->|"2. Admin Credentials & User Management Requests"| AUREX
+    AUREX -->|"3. User Provisioning Confirmations & System Health Status"| ADMIN
+    
+    AUDITOR -->|"4. Auditor Credentials & Audit Decisions (Approve/Escalate)"| AUREX
+    AUREX -->|"5. Risk Reports, Policy Violations & Forensic Context Graphs"| AUDITOR
+    
+    VIEWER -->|"6. Viewer Credentials & Query Filters"| AUREX
+    AUREX -->|"7. Read-Only Transaction Views & Executive Risk Analytics"| VIEWER

@@ -1,0 +1,58 @@
+%% AUREX — Sequence Diagram: Login & JWT Authentication
+%% Source: docs/project-submission/diagrams/sequence-login.mmd
+
+sequenceDiagram
+    autonumber
+    actor User as Auditor / Admin (Browser)
+    participant SPA as React Frontend (Vite)
+    participant Filter as JwtAuthenticationFilter
+    participant AuthCtrl as AuthController
+    participant AuthSvc as AuthService
+    participant UserRepo as UserRepository
+    participant Encoder as PasswordEncoder (BCrypt)
+    participant JwtSvc as JwtService
+    participant DB as PostgreSQL Database
+
+    Note over User, SPA: 1. User submits login credentials
+    User->>SPA: Enters username & password on /login
+    SPA->>AuthCtrl: POST /api/auth/login {username, password}
+    
+    AuthCtrl->>AuthSvc: login(LoginRequest)
+    AuthSvc->>UserRepo: findByUsername(username)
+    UserRepo->>DB: SELECT id, username, password_hash, role, enabled... FROM users WHERE username = ?
+    DB-->>UserRepo: ResultSet row
+    UserRepo-->>AuthSvc: Optional<User>
+
+    alt User Not Found or Account Disabled
+        AuthSvc-->>AuthCtrl: throw BadCredentialsException / DisabledException
+        AuthCtrl-->>SPA: 401 Unauthorized {"message": "Invalid username or password"}
+        SPA-->>User: Display error message
+    else User Exists & Enabled
+        AuthSvc->>Encoder: matches(rawPassword, user.getPasswordHash())
+        alt Password Mismatch
+            Encoder-->>AuthSvc: false
+            AuthSvc-->>AuthCtrl: throw BadCredentialsException
+            AuthCtrl-->>SPA: 401 Unauthorized {"message": "Invalid username or password"}
+        else Password Valid
+            Encoder-->>AuthSvc: true
+            AuthSvc->>JwtSvc: generateToken(username, userId, role)
+            JwtSvc-->>AuthSvc: Signed JWT (HMAC-SHA256, 24h validity)
+            AuthSvc-->>AuthCtrl: LoginResponse (token, tokenType, expiresIn, UserDto)
+            AuthCtrl-->>SPA: 200 OK {token, user: {id, username, role, enabled}}
+            SPA->>SPA: tokenStore.setToken(token), sync AuthContext
+            SPA-->>User: Redirect to Dashboard (/)
+        end
+    end
+
+    Note over User, DB: 2. Subsequent Authenticated API Call (e.g. GET /api/transactions)
+    User->>SPA: Navigates to /transactions
+    SPA->>Filter: GET /api/transactions (Header: "Authorization: Bearer <token>")
+    Filter->>JwtSvc: validateToken(token)
+    JwtSvc-->>Filter: true
+    Filter->>JwtSvc: getUsernameFromToken(token)
+    JwtSvc-->>Filter: "auditor_vighnesh"
+    Filter->>UserRepo: findByUsername("auditor_vighnesh")
+    UserRepo->>DB: SELECT ... FROM users WHERE username = ?
+    DB-->>UserRepo: Live User row (checks enabled == true)
+    Filter->>Filter: Build UsernamePasswordAuthenticationToken & set SecurityContext
+    Filter->>SPA: Passes request down filter chain to Controller

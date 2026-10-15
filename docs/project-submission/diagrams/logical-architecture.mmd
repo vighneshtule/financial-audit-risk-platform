@@ -1,0 +1,92 @@
+%% AUREX — Logical System Architecture Diagram
+%% Source: docs/project-submission/diagrams/logical-architecture.mmd
+
+flowchart TB
+    subgraph PresentationTier ["1. Presentation Tier (React 19 / TypeScript SPA)"]
+        UI_PAGES["Pages: Dashboard, Transactions, Investigation, Import, Users, History, Intelligence"]
+        UI_CONTEXT["AuthContext & ThemeContext"]
+        UI_GUARDS["Guards: ProtectedRoute, RoleGuard"]
+        AXIOS["Axios API Client (Token Interceptor & 401 Handler)"]
+    end
+
+    subgraph SecurityTier ["2. Security & Gateway Tier (Spring Security 6)"]
+        AUTH_FILTER["JwtAuthenticationFilter (Per-Request Live Status Check)"]
+        SEC_CONFIG["SecurityConfig (RBAC Authorization Matrix)"]
+        AUTH_EP["CustomAuthenticationEntryPoint (401 Handler)"]
+        ACCESS_DENIED["CustomAccessDeniedHandler (403 Handler)"]
+    end
+
+    subgraph WebTier ["3. REST API Web Tier (@RestController)"]
+        CTRL_AUTH["AuthController (/api/auth)"]
+        CTRL_USER["UserController (/api/users)"]
+        CTRL_TXN["TransactionController & ImportController (/api/transactions)"]
+        CTRL_RISK["RiskController (/api/risk)"]
+        CTRL_INTEL["RiskIntelligenceController (/api/risk/intelligence)"]
+        CTRL_AUDIT["AuditController (/api/risk/transactions/{id}/audit)"]
+        EX_HANDLER["GlobalExceptionHandler (@RestControllerAdvice)"]
+    end
+
+    subgraph ServiceTier ["4. Domain & Business Service Tier"]
+        SVC_AUTH["AuthService & JwtService"]
+        SVC_USER["UserService (Lockout & Self-Disable Rules)"]
+        SVC_IMPORT["TransactionImportFacade & TransactionImportService"]
+        SVC_AUDIT["AuditService (Actor Derivation & Dual Logging)"]
+        SVC_ANALYTICS["AnalyticsService & RiskEvidenceService"]
+        SVC_RISK["RiskAnalysisService & RiskScoreCalculator"]
+        
+        subgraph RiskEngineSubsystem ["Deterministic Risk Engine Core"]
+            FACTORY["RiskEngineFactory"]
+            ENGINE["RiskEngine"]
+            RULES["6 Rules: HighAmount, UnusualTime, RoundAmount,<br/>DuplicateTransaction, TransactionVelocity, VendorConcentration"]
+        end
+    end
+
+    subgraph PersistenceTier ["5. Data Access Tier (Plain JDBC - No JPA/Hibernate)"]
+        REPO_USER["UserRepository (JdbcTemplate)"]
+        REPO_TXN["TransactionRepository (PreparedStatement)"]
+        REPO_RUN["RiskAnalysisRunRepository (DataSourceUtils)"]
+        REPO_FINDING["RiskFindingRepository (DataSourceUtils)"]
+        REPO_AUDIT["AuditDecisionRepository & AuditEventRepository"]
+        REPO_INTEL["AnalyticsRepository & RiskEvidenceRepository"]
+    end
+
+    subgraph DatabaseTier ["6. Database Storage Tier (PostgreSQL 16)"]
+        T_USERS[("users")]
+        T_TXN[("transactions")]
+        T_RUNS[("risk_analysis_runs")]
+        T_FINDINGS[("risk_findings")]
+        T_DECISIONS[("audit_decisions")]
+        T_EVENTS[("audit_events")]
+    end
+
+    %% Cross-tier flow connections
+    UI_PAGES --> UI_CONTEXT
+    UI_CONTEXT --> UI_GUARDS
+    UI_GUARDS --> AXIOS
+    AXIOS -->|"HTTP REST Requests /api/*"| AUTH_FILTER
+
+    AUTH_FILTER --> SEC_CONFIG
+    SEC_CONFIG --> WebTier
+    SEC_CONFIG -.-> AUTH_EP
+    SEC_CONFIG -.-> ACCESS_DENIED
+
+    WebTier --> ServiceTier
+    CTRL_RISK --> SVC_RISK
+    SVC_RISK --> FACTORY
+    FACTORY --> ENGINE
+    ENGINE --> RULES
+
+    ServiceTier --> PersistenceTier
+    SVC_USER --> REPO_USER
+    SVC_IMPORT --> REPO_TXN
+    SVC_RISK --> REPO_RUN & REPO_FINDING & REPO_TXN
+    SVC_AUDIT --> REPO_AUDIT & REPO_TXN
+    SVC_ANALYTICS --> REPO_INTEL
+
+    PersistenceTier --> DatabaseTier
+    REPO_USER --> T_USERS
+    REPO_TXN --> T_TXN
+    REPO_RUN --> T_RUNS
+    REPO_FINDING --> T_FINDINGS
+    REPO_AUDIT --> T_DECISIONS & T_EVENTS
+    REPO_INTEL --> T_TXN & T_RUNS & T_FINDINGS

@@ -1,0 +1,61 @@
+%% AUREX — Sequence Diagram: Multipart CSV Ingestion Workflow
+%% Source: docs/project-submission/diagrams/sequence-csv-import.mmd
+
+sequenceDiagram
+    autonumber
+    actor Auditor as Auditor / Admin
+    participant Ctrl as TransactionImportController
+    participant OS as Local File System (Temp Storage)
+    participant Facade as TransactionImportFacade
+    participant Svc as TransactionImportService
+    participant Reader as TransactionCsvReader
+    participant TxnRepo as TransactionRepository
+    participant DB as PostgreSQL Database
+
+    Auditor->>Ctrl: POST /api/transactions/import (Multipart: "file"=.csv, Bearer JWT)
+    Note over Ctrl: Security verifies ROLE_ADMIN or ROLE_AUDITOR
+    
+    alt File Empty or Missing
+        Ctrl-->>Auditor: 400 Bad Request {"message": "Uploaded file is missing or empty"}
+    else File Extension Not .csv
+        Ctrl-->>Auditor: 400 Bad Request {"message": "Only CSV files are accepted (.csv extension required)"}
+    else Valid CSV Upload
+        Ctrl->>OS: Files.createTempFile("aurex-import-", ".csv")
+        OS-->>Ctrl: Path tempFile
+        Ctrl->>OS: file.transferTo(tempFile)
+        
+        Ctrl->>Facade: importFromCsv(tempFilePath)
+        Facade->>Svc: importFromCsv(tempFilePath)
+        
+        Svc->>Reader: read(tempFilePath)
+        Reader->>OS: Read and parse CSV lines (RFC 4180)
+        OS-->>Reader: Line records
+        Reader-->>Svc: List<Transaction> (Parsed objects)
+        
+        rect rgb(240, 248, 255)
+            Note over Svc, DB: Manual Transactional Control (Plain JDBC)
+            Svc->>DB: dataSource.getConnection()
+            DB-->>Svc: Connection conn
+            Svc->>Svc: conn.setAutoCommit(false)
+            
+            loop For Each Parsed Transaction
+                Svc->>TxnRepo: save(conn, transaction)
+                TxnRepo->>DB: INSERT INTO transactions (transaction_id, vendor, employee, amount, transaction_time, category) VALUES (?, ?, ?, ?, ?, ?)
+                DB-->>TxnRepo: 1 row affected
+            end
+            
+            alt Any Constraint Violation or Duplicate Key
+                Svc->>Svc: conn.rollback()
+                Svc-->>Facade: throw SQLException
+                Facade-->>Ctrl: throw Exception
+                Ctrl-->>Auditor: 400 Bad Request {"message": "Import failed: ..."}
+            else All Transactions Saved Successfully
+                Svc->>Svc: conn.commit()
+                Svc-->>Facade: importedCount
+                Facade-->>Ctrl: importedCount
+            end
+        end
+        
+        Ctrl->>OS: Files.deleteIfExists(tempFile)
+        Ctrl-->>Auditor: 200 OK ImportResponse {"message": "Transactions imported successfully", "importedCount": N}
+    end

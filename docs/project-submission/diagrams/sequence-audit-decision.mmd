@@ -1,0 +1,57 @@
+%% AUREX — Sequence Diagram: Recording an Audit Decision & Event History
+%% Source: docs/project-submission/diagrams/sequence-audit-decision.mmd
+
+sequenceDiagram
+    autonumber
+    actor Auditor as Authenticated Auditor (Principal)
+    participant Ctrl as AuditController
+    participant Svc as AuditService
+    participant TxnRepo as TransactionRepository
+    participant RunRepo as RiskAnalysisRunRepository
+    participant DecisionRepo as AuditDecisionRepository
+    participant EventRepo as AuditEventRepository
+    participant DB as PostgreSQL Database
+
+    Auditor->>Ctrl: POST /api/risk/transactions/{id}/audit/decisions<br/>Body: {decision: "REQUIRES_INVESTIGATION", comment: "...", analysisRunId: 1042}
+    Note over Ctrl: Security verifies ROLE_ADMIN or ROLE_AUDITOR
+    
+    Ctrl->>Ctrl: Extract actor = principal.getName().trim()<br/>(Ignores client-supplied decidedBy)
+    Ctrl->>Svc: recordDecision(transactionId, request, actor)
+    
+    rect rgb(240, 248, 255)
+        Note over Svc, DB: @Transactional Boundary
+        Svc->>TxnRepo: findById(transactionId)
+        TxnRepo->>DB: SELECT * FROM transactions WHERE transaction_id = ?
+        DB-->>TxnRepo: Transaction row
+        TxnRepo-->>Svc: Transaction
+        
+        alt Target Analysis Run Specified
+            Svc->>RunRepo: findByIdAndTransactionId(analysisRunId, transactionId)
+            RunRepo->>DB: SELECT * FROM risk_analysis_runs WHERE id = ? AND transaction_id = ?
+            DB-->>RunRepo: RiskAnalysisRun row
+            RunRepo-->>Svc: RiskAnalysisRun
+        else No Analysis Run ID in Request
+            Svc->>RunRepo: findLatestByTransactionId(transactionId)
+            RunRepo->>DB: SELECT * FROM risk_analysis_runs WHERE transaction_id = ? ORDER BY analyzed_at DESC, id DESC LIMIT 1
+            DB-->>RunRepo: Latest RiskAnalysisRun
+            RunRepo-->>Svc: Latest RiskAnalysisRun
+        end
+        
+        Svc->>DecisionRepo: save(transactionId, runId, decision, comment, actor)
+        DecisionRepo->>DB: INSERT INTO audit_decisions (transaction_id, analysis_run_id, decision, comment, decided_by) VALUES (?, ?, ?, ?, ?) RETURNING id
+        DB-->>DecisionRepo: decisionId (e.g. 501)
+        DecisionRepo-->>Svc: 501
+        
+        Svc->>EventRepo: save(transactionId, decisionId, "AUDIT_DECISION_CREATED", eventDetails, actor)
+        EventRepo->>DB: INSERT INTO audit_events (transaction_id, decision_id, event_type, event_details, actor) VALUES (?, ?, ?, ?, ?) RETURNING id
+        DB-->>EventRepo: eventId (e.g. 901)
+        EventRepo-->>Svc: 901
+        
+        Svc->>DecisionRepo: findById(501)
+        DecisionRepo->>DB: SELECT * FROM audit_decisions WHERE id = 501
+        DB-->>DecisionRepo: Full AuditDecision record
+        DecisionRepo-->>Svc: AuditDecision
+    end
+    
+    Svc-->>Ctrl: AuditDecision
+    Ctrl-->>Auditor: 201 Created AuditDecision {id: 501, transactionId, decision, comment, decidedBy, decidedAt}
