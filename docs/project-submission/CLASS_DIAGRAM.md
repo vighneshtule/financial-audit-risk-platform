@@ -25,8 +25,6 @@ The backend object model of AUREX is designed using clean architectural layering
 
 ```
 
----
-
 ## 3. Package & Responsibility Inventory
 
 ### 3.1 Package: `rule`
