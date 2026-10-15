@@ -11,69 +11,8 @@
 
 The use case diagram models the interactions between the system actors (`Compliance Administrator`, `Internal Auditor`, and `Audit Viewer`) and the functional boundaries of the AUREX platform.
 
-```plantuml
-@startuml
-left to right direction
-skinparam packageStyle rectangle
-skinparam roundcorner 8
-skinparam shadowing false
+<img width="1096" height="1370" alt="RPJVJkiu4CRlynIZNfozIdluGobHLL4LLY21XDejkxTJPqYzTUp8Te1gMMaVOfzmdsGTcvY6viRrsD_F_MR6phMng6rTYkGNcA-Njt_0V__y2-l71rWRWWMwuOPZeR5qWfMgDQCCSiNCgDBgJs8sDVMcvCPm9KTvK9fHRIXbZXrMpSc9e1SBLe7cnTP2phNZd3unEouhT0HKo7POqChk1K6" src="https://github.com/user-attachments/assets/9519343a-040a-43f9-8464-fdcc370ad025" />
 
-actor "Authenticated User" as User
-actor "Compliance Admin" as Admin
-actor "Internal Auditor" as Auditor
-actor "Audit Viewer" as Viewer
-
-Admin -up-|> User
-Auditor -up-|> User
-Viewer -up-|> User
-
-rectangle "AUREX Financial Audit Platform" {
-    usecase "UC-01: Log In & Authenticate" as UC01
-    usecase "UC-02: Manage System Users" as UC02
-    usecase "UC-02a: Create User Account" as UC02a
-    usecase "UC-02b: Enable/Disable User" as UC02b
-    usecase "UC-03: Ingest Transaction CSV" as UC03
-    usecase "UC-04: View & Filter Transactions" as UC04
-    usecase "UC-05: Execute Deterministic Risk Analysis" as UC05
-    usecase "UC-05a: Evaluate 6 Audit Policies" as UC05a
-    usecase "UC-05b: Persist Run & Findings" as UC05b
-    usecase "UC-06: Investigate Transaction Workspace" as UC06
-    usecase "UC-06a: Inspect Entity Evidence Context" as UC06a
-    usecase "UC-06b: Compare Historical Runs" as UC06b
-    usecase "UC-07: Record Audit Decision" as UC07
-    usecase "UC-07a: Log Immutable Audit Event" as UC07a
-    usecase "UC-08: View Risk Intelligence Analytics" as UC08
-    usecase "UC-09: Check System Health" as UC09
-}
-
-User --> UC01
-User --> UC04
-User --> UC06
-User --> UC08
-User --> UC09
-
-Admin --> UC02
-UC02 <|-- UC02a
-UC02 <|-- UC02b
-
-Admin --> UC03
-Auditor --> UC03
-
-Admin --> UC05
-Auditor --> UC05
-
-UC05 .> UC05a : <<include>>
-UC05 .> UC05b : <<include>>
-
-UC06 <. UC06a : <<extend>>
-UC06 <. UC06b : <<extend>>
-
-Admin --> UC07
-Auditor --> UC07
-UC07 .> UC07a : <<include>>
-
-@enduml
-```
 
 ---
 
