@@ -23,7 +23,6 @@ The backend object model of AUREX is designed using clean architectural layering
 <img width="1122" height="716" alt="Class_Diagram" src="https://github.com/user-attachments/assets/f2268ec4-8f59-41a2-8663-a6b59d2125f0" />
 
 
-```
 
 ## 3. Package & Responsibility Inventory
 
