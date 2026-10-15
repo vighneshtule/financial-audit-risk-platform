@@ -1,0 +1,54 @@
+%% AUREX — DFD Level 1 (Process Decomposition Diagram)
+%% Source: docs/project-submission/diagrams/dfd-level-1.mmd
+
+flowchart TB
+    %% External Entities
+    ADMIN["Administrator"]
+    AUDITOR["Auditor"]
+    VIEWER["Viewer"]
+    FILE["CSV File"]
+
+    %% Data Stores
+    D1[("D1: users")]
+    D2[("D2: transactions")]
+    D3[("D3: risk_analysis_runs")]
+    D4[("D4: risk_findings")]
+    D5[("D5: audit_decisions")]
+    D6[("D6: audit_events")]
+
+    %% Processes
+    P1(("1.0<br/>Authentication &<br/>Session Validation"))
+    P2(("2.0<br/>User Management &<br/>Status Control"))
+    P3(("3.0<br/>CSV Ingestion &<br/>Transaction Parsing"))
+    P4(("4.0<br/>Deterministic Risk<br/>Engine Evaluation"))
+    P5(("5.0<br/>Audit Decision &<br/>Event Logging"))
+    P6(("6.0<br/>Risk Intelligence &<br/>Relationship Analytics"))
+
+    %% Data Flows
+    ADMIN & AUDITOR & VIEWER -->|"Username, Password"| P1
+    P1 <-->|"Verify hash & live status"| D1
+    P1 -->|"JWT Token & UserDto"| ADMIN & AUDITOR & VIEWER
+
+    ADMIN -->|"Create user / Update status"| P2
+    P2 <-->|"Check lockout & write user"| D1
+    P2 -->|"Updated UserDto"| ADMIN
+
+    FILE -->|"Multipart CSV Stream"| P3
+    AUDITOR & ADMIN -.->|"Triggers upload"| P3
+    P3 -->|"Batch insert (AutoCommit=false)"| D2
+    P3 -->|"Import summary count"| AUDITOR & ADMIN
+
+    D2 -->|"Dataset & Target Txn"| P4
+    P4 -->|"Store run score & level"| D3
+    P4 -->|"Store policy findings"| D4
+    P4 -->|"Live Risk Report & Findings"| AUDITOR & VIEWER
+
+    AUDITOR -->|"Decision Type & Comment"| P5
+    P1 -.->|"Verified Actor Name"| P5
+    D3 -.->|"Validate Run ID"| P5
+    P5 -->|"Persist Decision"| D5
+    P5 -->|"Persist Event Log"| D6
+    P5 -->|"Confirmed Audit Record"| AUDITOR
+
+    D2 & D3 & D4 -->|"Raw aggregates & latest runs"| P6
+    P6 -->|"Metrics, Charts & Context Graphs"| AUDITOR & VIEWER & ADMIN

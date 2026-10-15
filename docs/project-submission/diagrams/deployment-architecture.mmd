@@ -1,0 +1,49 @@
+%% AUREX — Physical Deployment & Runtime Architecture Diagram
+%% Source: docs/project-submission/diagrams/deployment-architecture.mmd
+
+flowchart TB
+    subgraph HostEnvironment ["Host Operating System (Windows 11 / Linux VM)"]
+        CLIENT["Web Browser Client (Auditor / Admin / Executive)"]
+        
+        subgraph DockerDaemon ["Docker Engine Runtime Environment"]
+            subgraph DockerNetwork ["Internal Bridge Network (aurex-network)"]
+                
+                subgraph FrontendContainer ["Container: aurex-frontend (nginx:alpine)"]
+                    NGINX["Nginx Web Server<br/>(Internal Port: 80 | Host Published: ${FRONTEND_PORT:-80})"]
+                    STATIC["Static SPA Bundle (/usr/share/nginx/html)<br/>HTML5, React 19, Vite Dist, JS/CSS Gzip"]
+                end
+                
+                subgraph BackendContainer ["Container: aurex-backend (eclipse-temurin:17-jre-alpine)"]
+                    SECURITY["Non-root user: aurexuser:aurexgroup"]
+                    JVM["Spring Boot 3.5.6 Application<br/>(Internal Port: 8080 | Host: Not Published)"]
+                    JDBC_POOL["HikariCP Plain JDBC Connection Pool"]
+                end
+                
+                subgraph PostgresContainer ["Container: aurex-postgres (postgres:16-alpine)"]
+                    PG_ENGINE["PostgreSQL 16 Relational Engine<br/>(Internal Port: 5432 | Host: Not Published)"]
+                    INIT_SCRIPT["/docker-entrypoint-initdb.d/schema.sql (Mounted :ro)"]
+                end
+            end
+            
+            subgraph DockerVolumes ["Managed Persistent Volumes"]
+                VOL_DATA[("Volume: postgres_data<br/>(/var/lib/postgresql/data)")]
+            end
+        end
+    end
+
+    CLIENT -->|"HTTP :${FRONTEND_PORT:-80} (Published Host Port)"| NGINX
+    NGINX -->|"Static Assets & SPA Routing (/index.html)"| STATIC
+    NGINX -->|"Internal Proxy /api/* -> http://backend:8080/api/"| JVM
+    
+    JVM --> JDBC_POOL
+    JDBC_POOL -->|"Internal TCP :5432 (DNS: postgres)"| PG_ENGINE
+    
+    PG_ENGINE <-->|"Read / Write Table Blocks"| VOL_DATA
+    INIT_SCRIPT -.->|"Runs on first-volume creation only"| PG_ENGINE
+
+    classDef host fill:#f8f9fa,stroke:#6c757d,stroke-width:2px;
+    classDef container fill:#e8f4f8,stroke:#0284c7,stroke-width:2px;
+    classDef volume fill:#fef3c7,stroke:#d97706,stroke-width:2px;
+    class HostEnvironment host;
+    class FrontendContainer,BackendContainer,PostgresContainer container;
+    class DockerVolumes volume;

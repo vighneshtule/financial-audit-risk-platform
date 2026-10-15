@@ -1,0 +1,98 @@
+@startuml
+' AUREX — UML Object Diagram (Illustrative Runtime Snapshot)
+' Source: docs/project-submission/diagrams/object-diagram.puml
+
+skinparam objectAttributeIconSize 0
+skinparam monochrome false
+skinparam roundcorner 8
+skinparam shadowing false
+
+title Runtime Object Snapshot: Forensic Evaluation of Transaction "TXN-90214"\n(Sample Illustrative State — Demonstrating Rule Findings & Audit Decision)
+
+object "auditor : User" as user1 {
+    id = 2
+    username = "auditor_vighnesh"
+    role = UserRole.AUDITOR
+    enabled = true
+}
+
+object "targetTxn : Transaction" as txn1 {
+    id = "TXN-90214"
+    vendor = "Apex Logistics Pvt Ltd"
+    employee = "EMP-401"
+    amount = 150000.00
+    transactionTime = 2026-10-14T21:45:00
+    category = "LOGISTICS"
+}
+
+object "run_1042 : RiskAnalysisRun" as run1 {
+    id = 1042
+    transactionId = "TXN-90214"
+    riskScore = 60
+    riskLevel = RiskSeverity.HIGH
+    analyzedAt = 2026-10-15T08:30:15
+}
+
+object "f1 : RiskFinding" as finding1 {
+    type = RiskType.HIGH_AMOUNT
+    score = 30
+    severity = RiskSeverity.MEDIUM
+    explanation = "Transaction amount exceeds configured threshold of INR 100000"
+}
+
+object "f2 : RiskFinding" as finding2 {
+    type = RiskType.UNUSUAL_TRANSACTION_TIME
+    score = 20
+    severity = RiskSeverity.MEDIUM
+    explanation = "Transaction occurred outside normal business hours"
+}
+
+object "f3 : RiskFinding" as finding3 {
+    type = RiskType.ROUND_AMOUNT
+    score = 10
+    severity = RiskSeverity.MEDIUM
+    explanation = "Transaction amount is a round multiple of INR 10000"
+}
+
+object "liveReport : RiskReport" as report1 {
+    riskScore = 60
+    riskLevel = RiskSeverity.HIGH
+}
+
+object "auditDecision_501 : AuditDecision" as decision1 {
+    id = 501
+    transactionId = "TXN-90214"
+    analysisRunId = 1042
+    decision = AuditDecisionType.REQUIRES_INVESTIGATION
+    comment = "High value off-hours round transfer requires vendor contract validation"
+    decidedBy = "auditor_vighnesh"
+    decidedAt = 2026-10-15T09:15:00
+}
+
+object "auditEvent_901 : AuditEvent" as event1 {
+    id = 901
+    transactionId = "TXN-90214"
+    decisionId = 501
+    eventType = "AUDIT_DECISION_CREATED"
+    eventDetails = "Audit decision REQUIRES_INVESTIGATION recorded for analysis run 1042"
+    actor = "auditor_vighnesh"
+    createdAt = 2026-10-15T09:15:00
+}
+
+' Object Associations
+txn1 "1" -- "0..*" run1 : evaluated in
+run1 "1" *-- "3" finding1 : aggregates
+run1 "1" *-- "3" finding2 : aggregates
+run1 "1" *-- "3" finding3 : aggregates
+report1 ..> finding1 : contains
+report1 ..> finding2 : contains
+report1 ..> finding3 : contains
+report1 ..> run1 : persisted as
+
+txn1 "1" -- "0..*" decision1 : reviewed by
+run1 "1" -- "0..*" decision1 : verified by
+decision1 "1" -- "1" event1 : generates immutable log
+user1 ..> decision1 : actor authenticated as
+user1 ..> event1 : recorded in audit trail
+
+@enduml

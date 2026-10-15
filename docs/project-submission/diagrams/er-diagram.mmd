@@ -1,0 +1,69 @@
+%% AUREX — Entity Relationship Diagram (ERD)
+%% Source: docs/project-submission/diagrams/er-diagram.mmd
+
+erDiagram
+    users {
+        bigint id PK "BIGSERIAL"
+        varchar username UK "VARCHAR(100), UNIQUE"
+        varchar password_hash "VARCHAR(255)"
+        varchar role "VARCHAR(20), CHECK IN (ADMIN, AUDITOR, VIEWER)"
+        boolean enabled "BOOLEAN, DEFAULT TRUE"
+        timestamp created_at "TIMESTAMP, DEFAULT CURRENT_TIMESTAMP"
+        timestamp updated_at "TIMESTAMP, DEFAULT CURRENT_TIMESTAMP"
+    }
+
+    transactions {
+        varchar transaction_id PK "VARCHAR(50)"
+        varchar vendor "VARCHAR(255)"
+        varchar employee "VARCHAR(100)"
+        numeric amount "NUMERIC(15,2)"
+        timestamp transaction_time "TIMESTAMP"
+        varchar category "VARCHAR(100)"
+    }
+
+    risk_analysis_runs {
+        bigint id PK "BIGSERIAL"
+        varchar transaction_id FK "VARCHAR(50) -> transactions(transaction_id) ON DELETE CASCADE"
+        integer risk_score "INTEGER"
+        varchar risk_level "VARCHAR(20) [LOW, MEDIUM, HIGH, CRITICAL]"
+        timestamp analyzed_at "TIMESTAMP, DEFAULT CURRENT_TIMESTAMP"
+    }
+
+    risk_findings {
+        bigint id PK "BIGSERIAL"
+        bigint analysis_run_id FK "BIGINT -> risk_analysis_runs(id) ON DELETE CASCADE"
+        varchar transaction_id FK "VARCHAR(50) -> transactions(transaction_id) ON DELETE CASCADE"
+        varchar risk_type "VARCHAR(100) [HIGH_AMOUNT, UNUSUAL_TRANSACTION_TIME, etc.]"
+        integer score "INTEGER"
+        varchar severity "VARCHAR(20) [LOW, MEDIUM, HIGH, CRITICAL]"
+        text explanation "TEXT"
+        timestamp created_at "TIMESTAMP, DEFAULT CURRENT_TIMESTAMP"
+    }
+
+    audit_decisions {
+        bigint id PK "BIGSERIAL"
+        varchar transaction_id FK "VARCHAR(50) -> transactions(transaction_id) ON DELETE RESTRICT"
+        bigint analysis_run_id FK "BIGINT -> risk_analysis_runs(id) ON DELETE RESTRICT"
+        varchar decision "VARCHAR(40) [CONFIRMED_RISK, FALSE_POSITIVE, etc.]"
+        text comment "TEXT, NULLABLE"
+        varchar decided_by "VARCHAR(100), LOGICAL REF -> users(username)"
+        timestamp decided_at "TIMESTAMP, DEFAULT CURRENT_TIMESTAMP"
+    }
+
+    audit_events {
+        bigint id PK "BIGSERIAL"
+        varchar transaction_id FK "VARCHAR(50) -> transactions(transaction_id) ON DELETE RESTRICT"
+        bigint decision_id FK "BIGINT, NULLABLE -> audit_decisions(id) ON DELETE RESTRICT"
+        varchar event_type "VARCHAR(50) [AUDIT_DECISION_CREATED]"
+        text event_details "TEXT"
+        varchar actor "VARCHAR(100), LOGICAL REF -> users(username)"
+        timestamp created_at "TIMESTAMP, DEFAULT CURRENT_TIMESTAMP"
+    }
+
+    transactions ||--o{ risk_analysis_runs : "has historical runs"
+    transactions ||--o{ risk_findings : "has policy findings"
+    risk_analysis_runs ||--o{ risk_findings : "contains findings"
+    transactions ||--o{ audit_decisions : "undergoes audit"
+    risk_analysis_runs ||--o{ audit_decisions : "evaluated by"
+    transactions ||--o{ audit_events : "tracked in event log"
+    audit_decisions ||--o{ audit_events : "generates audit event"

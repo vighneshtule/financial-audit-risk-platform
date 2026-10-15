@@ -1,0 +1,64 @@
+@startuml
+' AUREX — UML Use Case Diagram
+' Source: docs/project-submission/diagrams/use-case.puml
+
+left to right direction
+skinparam packageStyle rectangle
+skinparam roundcorner 8
+skinparam shadowing false
+
+actor "Authenticated User" as User
+actor "Compliance Admin" as Admin
+actor "Internal Auditor" as Auditor
+actor "Audit Viewer" as Viewer
+
+Admin -up-|> User
+Auditor -up-|> User
+Viewer -up-|> User
+
+rectangle "AUREX Financial Audit Platform" {
+    usecase "UC-01: Log In & Authenticate" as UC01
+    usecase "UC-02: Manage System Users" as UC02
+    usecase "UC-02a: Create User Account" as UC02a
+    usecase "UC-02b: Enable/Disable User" as UC02b
+    usecase "UC-03: Ingest Transaction CSV" as UC03
+    usecase "UC-04: View & Filter Transactions" as UC04
+    usecase "UC-05: Execute Deterministic Risk Analysis" as UC05
+    usecase "UC-05a: Evaluate 6 Audit Policies" as UC05a
+    usecase "UC-05b: Persist Run & Findings" as UC05b
+    usecase "UC-06: Investigate Transaction Workspace" as UC06
+    usecase "UC-06a: Inspect Entity Evidence Context" as UC06a
+    usecase "UC-06b: Compare Historical Runs" as UC06b
+    usecase "UC-07: Record Audit Decision" as UC07
+    usecase "UC-07a: Log Immutable Audit Event" as UC07a
+    usecase "UC-08: View Risk Intelligence Analytics" as UC08
+    usecase "UC-09: Check System Health" as UC09
+}
+
+User --> UC01
+User --> UC04
+User --> UC06
+User --> UC08
+User --> UC09
+
+Admin --> UC02
+UC02 <|-- UC02a
+UC02 <|-- UC02b
+
+Admin --> UC03
+Auditor --> UC03
+
+Admin --> UC05
+Auditor --> UC05
+
+UC05 .> UC05a : <<include>>
+UC05 .> UC05b : <<include>>
+
+UC06 <. UC06a : <<extend>>
+UC06 <. UC06b : <<extend>>
+
+Admin --> UC07
+Auditor --> UC07
+UC07 .> UC07a : <<include>>
+
+@enduml
