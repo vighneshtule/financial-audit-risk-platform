@@ -83,7 +83,7 @@ Severity Classification:
 ### Query Optimization & Indexing
 To support real-time investigative workspace context queries, composite and single-column B-Tree indexes are defined:
 
-- `transactions`: Indexes on `vendor`, `employee`, `category`, and `transaction_time` enable sub-millisecond filtering for evidence relationship grouping.
+- `transactions`: Indexes on `vendor`, `employee`, `category`, and `transaction_time` support fast filtering for evidence relationship grouping (no formal benchmark has been performed; actual latency depends on dataset size and hardware).
 - `risk_analysis_runs`: Composite index `idx_analysis_runs_txn_analyzed (transaction_id, analyzed_at DESC, id DESC)` optimizes SQL `DISTINCT ON` queries retrieving the latest evaluation run per related transaction without full-table scans.
 
 ---
