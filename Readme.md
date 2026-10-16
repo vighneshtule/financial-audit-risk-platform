@@ -27,6 +27,12 @@ AUREX solves this by ingesting transaction datasets and evaluating every record 
 
 ## 🌐 Live Demo
 
+
+
+https://github.com/user-attachments/assets/ca98244e-9eb3-455d-b4ef-f48e300c62f6
+
+
+
 > ⚠️ **Free-tier deployment notice:** AUREX is hosted on Render's free tier. The backend service may take **30–60 seconds to cold-start** after a period of inactivity. Please wait for the health check to return `{"status":"UP","database":"UP"}` before logging in.
 
 | Resource | URL |
